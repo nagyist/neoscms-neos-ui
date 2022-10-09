@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import {Provider} from 'react-redux';
 import {DndProvider} from 'react-dnd';
 import HTML5Backend from 'react-dnd-html5-backend';
-import style from './style.css';
+import style from './style.module.scss';
 
 import Neos from './Neos/index';
 

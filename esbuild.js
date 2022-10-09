@@ -66,19 +66,7 @@ require('esbuild').build({
             },
         },
         stylePlugin({
-            // process all .css and .scss files
-            // but exclude those files that are in the dir
-            // - @ckeditor
-            // - @fortawesome/fontawesome-svg-core
-            cssModulesMatch: /^((?!\/@ckeditor|\/@fortawesome\/fontawesome-svg-core)).*\.s?css$/,
-            postcss: {
-                plugins: [
-                    require('postcss-import'),
-                    require('postcss-nested'),
-                    require('postcss-hexrgba'),
-                    require('autoprefixer'),
-                ]
-            }
+            cssModulesMatch: /\.module\.scss$/
         }),
     ],
     define: {

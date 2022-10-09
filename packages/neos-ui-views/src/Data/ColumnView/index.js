@@ -1,7 +1,7 @@
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import {$get} from 'plow-js';
-import style from './style.css';
+import style from './style.module.scss';
 import dataLoader from '../DataLoader/index';
 import Hero from './hero';
 import Column from './column';

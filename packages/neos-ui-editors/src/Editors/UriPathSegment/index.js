@@ -4,7 +4,7 @@ import unescape from 'lodash.unescape';
 import slugify from '@sindresorhus/slugify';
 import {neos} from '@neos-project/neos-ui-decorators';
 import {TextInput, IconButton} from '@neos-project/react-ui-components';
-import style from './style.css';
+import style from './style.module.scss';
 
 const defaultOptions = {
     autoFocus: false,

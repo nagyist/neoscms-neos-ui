@@ -10,7 +10,7 @@ import {actions} from '@neos-project/neos-ui-redux-store';
 import I18n from '@neos-project/neos-ui-i18n';
 import {isNil} from '@neos-project/utils-helpers';
 
-import style from './style.css';
+import style from './style.module.scss';
 
 @connect($transform({
     mode: $get('ui.addNodeModal.mode')

@@ -7,7 +7,7 @@ import {neos} from '@neos-project/neos-ui-decorators';
 
 import {selectors} from '@neos-project/neos-ui-redux-store';
 
-import style from './style.css';
+import style from './style.module.scss';
 
 @neos(globalRegistry => ({
     inlineEditorRegistry: globalRegistry.get('inlineEditors'),

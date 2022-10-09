@@ -1,8 +1,8 @@
 import {themr} from '@friendsofreactjs/react-css-themr';
 import identifiers from '../identifiers';
-import treeStyle from './tree.scss';
-import nodeStyle from './node.scss';
-import dragLayerStyle from './dragLayer.css';
+import treeStyle from './tree.module.scss';
+import nodeStyle from './node.module.scss';
+import dragLayerStyle from './dragLayer.module.scss';
 import Tree from './tree';
 import Node, {
     Header,
