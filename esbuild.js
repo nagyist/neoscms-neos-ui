@@ -29,6 +29,15 @@ require('esbuild').build({
                     path: require('path').join(__dirname, 'mockPath.js'),
                 }))
 
+                // HOTFIX: WIP - prevent dependencies to be bundled twice
+                onResolve({ filter: /^(react|react-dnd|react-dnd-html5-backend|react-dom|@neos-project\/neos-ui-decorators)$/, namespace: "file" }, ({path, ...options}) =>
+                    resolve(path, {
+                        ...options,
+                        namespace: "noRecurse",
+                        resolveDir: require('path').join(__dirname, 'packages/neos-ui')
+                    })
+                )
+
                 // exclude CKEditor styles
                 // the filter must match the import statement - and as one usually uses relative paths we cannot look for `@ckeditor` here
                 // the most correct way would be to look for all `/\.css/` - but this draws performance as we would intercept each css file
