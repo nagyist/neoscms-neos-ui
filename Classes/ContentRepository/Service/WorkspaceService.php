@@ -14,7 +14,6 @@ namespace Neos\Neos\Ui\ContentRepository\Service;
 
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindClosestNodeFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
-use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
@@ -92,9 +91,9 @@ class WorkspaceService
                 }
 
                 foreach ($originDimensionSpacePoints as $originDimensionSpacePoint) {
-                    $subgraph = $contentGraph->getSubgraph(
+                    $subgraph = $contentRepository->getContentSubgraph(
+                        $workspaceName,
                         $originDimensionSpacePoint->toDimensionSpacePoint(),
-                        VisibilityConstraints::withoutRestrictions()
                     );
                     $node = $subgraph->findNodeById($change->nodeAggregateId);
                     if ($node instanceof Node) {

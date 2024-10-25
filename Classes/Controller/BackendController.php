@@ -13,8 +13,6 @@ namespace Neos\Neos\Ui\Controller;
  */
 
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Dto\SubtreeTag;
-use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
-use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
@@ -151,9 +149,9 @@ class BackendController extends ActionController
         $rootDimensionSpacePoints = $contentRepository->getVariationGraph()->getRootGeneralizations();
         $arbitraryRootDimensionSpacePoint = array_shift($rootDimensionSpacePoints);
 
-        $subgraph = $contentGraph->getSubgraph(
-            $nodeAddress ? $nodeAddress->dimensionSpacePoint : $arbitraryRootDimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
+        $subgraph = $contentRepository->getContentSubgraph(
+            $workspace->workspaceName,
+            $nodeAddress->dimensionSpacePoint ?? $arbitraryRootDimensionSpacePoint,
         );
 
         // we assume that the ROOT node is always stored in the CR as "physical" node; so it is safe
@@ -222,9 +220,9 @@ class BackendController extends ActionController
 
         $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
 
-        $nodeInstance = $contentRepository->getContentGraph($nodeAddress->workspaceName)->getSubgraph(
-            $nodeAddress->dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
+        $nodeInstance = $contentRepository->getContentSubgraph(
+            $nodeAddress->workspaceName,
+            $nodeAddress->dimensionSpacePoint
         )->findNodeById($nodeAddress->aggregateId);
 
         $workspace = $contentRepository->findWorkspaceByName($nodeAddress->workspaceName);

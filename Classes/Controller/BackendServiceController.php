@@ -17,7 +17,6 @@ namespace Neos\Neos\Ui\Controller;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Exception\WorkspaceIsNotEmptyException;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
-use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateCurrentlyDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
@@ -451,11 +450,10 @@ class BackendServiceController extends ActionController
         }
 
         $contentRepository = $this->contentRepositoryRegistry->get($documentNodeAddress->contentRepositoryId);
-        $subgraph = $contentRepository->getContentGraph($userWorkspace->workspaceName)
-            ->getSubgraph(
-                $command->documentNode->dimensionSpacePoint,
-                VisibilityConstraints::withoutRestrictions()
-            );
+        $subgraph = $contentRepository->getContentSubgraph(
+            $userWorkspace->workspaceName,
+            $command->documentNode->dimensionSpacePoint,
+        );
 
         $documentNodeInstance = $subgraph->findNodeById($command->documentNode->aggregateId);
         assert($documentNodeInstance !== null);
@@ -579,9 +577,9 @@ class BackendServiceController extends ActionController
         foreach ($nodes as $nodeAddressString) {
             $nodeAddress = NodeAddress::fromJsonString($nodeAddressString);
             $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
-            $subgraph = $contentRepository->getContentGraph($nodeAddress->workspaceName)->getSubgraph(
+            $subgraph = $contentRepository->getContentSubgraph(
+                $nodeAddress->workspaceName,
                 $nodeAddress->dimensionSpacePoint,
-                VisibilityConstraints::withoutRestrictions()
             );
             $node = $subgraph->findNodeById($nodeAddress->aggregateId);
 
@@ -623,9 +621,9 @@ class BackendServiceController extends ActionController
         $result = [];
         foreach ($nodes as $nodeAddress) {
             $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
-            $subgraph = $contentRepository->getContentGraph($nodeAddress->workspaceName)->getSubgraph(
+            $subgraph = $contentRepository->getContentSubgraph(
+                $nodeAddress->workspaceName,
                 $nodeAddress->dimensionSpacePoint,
-                VisibilityConstraints::withoutRestrictions()
             );
             $node = $subgraph->findNodeById($nodeAddress->aggregateId);
             if (!is_null($node)) {
@@ -704,9 +702,9 @@ class BackendServiceController extends ActionController
     {
         $contextNodeAddress = NodeAddress::fromJsonString($contextNode);
         $contentRepository = $this->contentRepositoryRegistry->get($contextNodeAddress->contentRepositoryId);
-        $subgraph = $contentRepository->getContentGraph($contextNodeAddress->workspaceName)->getSubgraph(
+        $subgraph = $contentRepository->getContentSubgraph(
+            $contextNodeAddress->workspaceName,
             $contextNodeAddress->dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
         );
         $contextNode = $subgraph->findNodeById($contextNodeAddress->aggregateId);
 

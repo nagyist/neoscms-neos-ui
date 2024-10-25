@@ -14,7 +14,6 @@ namespace Neos\Neos\Ui\Domain\Model\Changes;
 
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursively;
-use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 
 /**
  * @internal These objects internally reflect possible operations made by the Neos.Ui.
@@ -64,9 +63,9 @@ class CopyAfter extends AbstractStructuralChange
 
             $contentRepository = $this->contentRepositoryRegistry->get($subject->contentRepositoryId);
             $command = CopyNodesRecursively::createFromSubgraphAndStartNode(
-                $contentRepository->getContentGraph($subject->workspaceName)->getSubgraph(
+                $contentRepository->getContentSubgraph(
+                    $subject->workspaceName,
                     $subject->dimensionSpacePoint,
-                    VisibilityConstraints::withoutRestrictions()
                 ),
                 $subject->workspaceName,
                 $subject,

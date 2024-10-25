@@ -37,7 +37,6 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindClosestNodeFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
-use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateCurrentlyDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
@@ -223,9 +222,9 @@ final class ConflictsBuilder
             return null;
         }
 
-        return $contentGraph->getSubgraph(
+        return $this->contentRepository->getContentSubgraph(
+            $this->workspaceName,
             $dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
         );
     }
 
