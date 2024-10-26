@@ -34,6 +34,7 @@ use Neos\Flow\Security\Context;
 use Neos\Neos\Domain\Service\WorkspacePublishingService;
 use Neos\Neos\Domain\Service\WorkspaceService;
 use Neos\Neos\FrontendRouting\SiteDetection\SiteDetectionResult;
+use Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService;
 use Neos\Neos\Service\UserService;
 use Neos\Neos\Ui\Application\ChangeTargetWorkspace;
 use Neos\Neos\Ui\Application\DiscardAllChanges;
@@ -154,6 +155,12 @@ class BackendServiceController extends ActionController
      * @var ReloadNodesQueryHandler
      */
     protected $reloadNodesQueryHandler;
+
+    /**
+     * @Flow\Inject
+     * @var ContentRepositoryAuthorizationService
+     */
+    protected $contentRepositoryAuthorizationService;
 
     /**
      * Set the controller context on the feedback collection after the controller
@@ -588,12 +595,15 @@ class BackendServiceController extends ActionController
                 return $this->getCurrentDimensionPresetIdentifiersForNode($node);
             }, $node->getOtherNodeVariants())));*/
             if (!is_null($node)) {
+                $authenticatedAccount = $this->securityContext->getAccount();
+                $nodePrivileges = $authenticatedAccount === null
+                    ? $this->contentRepositoryAuthorizationService->getNodePermissionsForAnonymousUser($node)
+                    : $this->contentRepositoryAuthorizationService->getNodePermissionsForAccount($node, $authenticatedAccount);
                 $result[$nodeAddress->toJson()] = [
-                    // todo reimplement nodePolicyService
                     'policy' => [
                         'disallowedNodeTypes' => [],
-                        'canRemove' => true,
-                        'canEdit' => true,
+                        'canRemove' => $nodePrivileges->edit,
+                        'canEdit' => $nodePrivileges->edit,
                         'disallowedProperties' => []
                     ]
                     //'dimensions' => $this->getCurrentDimensionPresetIdentifiersForNode($node),
