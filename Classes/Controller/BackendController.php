@@ -143,22 +143,16 @@ class BackendController extends ActionController
             $this->redirectToUri($this->uriBuilder->uriFor('index', [], 'Login', 'Neos.Neos'));
         }
 
-        try {
-            $workspace = $this->workspaceService->getPersonalWorkspaceForUser($siteDetectionResult->contentRepositoryId, $user->getId());
-        } catch (WorkspaceDoesNotExist) {
-            // todo will cause infinite loop: https://github.com/neos/neos-development-collection/issues/4401
-            $this->redirectToUri($this->uriBuilder->uriFor('index', [], 'Login', 'Neos.Neos'));
-        }
+        $this->workspaceService->createPersonalWorkspaceForUserIfMissing($siteDetectionResult->contentRepositoryId, $user);
+        $workspace = $this->workspaceService->getPersonalWorkspaceForUser($siteDetectionResult->contentRepositoryId, $user->getId());
+
         $contentGraph = $contentRepository->getContentGraph($workspace->workspaceName);
 
-        $backendControllerInternals = $this->contentRepositoryRegistry->buildService(
-            $siteDetectionResult->contentRepositoryId,
-            new BackendControllerInternalsFactory()
-        );
-        $defaultDimensionSpacePoint = $backendControllerInternals->getDefaultDimensionSpacePoint();
+        $rootDimensionSpacePoints = $contentRepository->getVariationGraph()->getRootGeneralizations();
+        $arbitraryRootDimensionSpacePoint = array_shift($rootDimensionSpacePoints);
 
         $subgraph = $contentGraph->getSubgraph(
-            $nodeAddress ? $nodeAddress->dimensionSpacePoint : $defaultDimensionSpacePoint,
+            $nodeAddress ? $nodeAddress->dimensionSpacePoint : $arbitraryRootDimensionSpacePoint,
             VisibilityConstraints::withoutRestrictions()
         );
 
@@ -170,7 +164,7 @@ class BackendController extends ActionController
         if (!$rootNodeAggregate) {
             throw new \RuntimeException(sprintf('No sites root node found in content repository "%s", while fetching site node "%s"', $contentRepository->id->value, $siteDetectionResult->siteNodeName->value), 1724849303);
         }
-        $rootNode = $rootNodeAggregate->getNodeByCoveredDimensionSpacePoint($defaultDimensionSpacePoint);
+        $rootNode = $rootNodeAggregate->getNodeByCoveredDimensionSpacePoint($arbitraryRootDimensionSpacePoint);
 
         $siteNode = $subgraph->findNodeByPath(
             $siteDetectionResult->siteNodeName->toNodeName(),
