@@ -24,6 +24,7 @@ use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Eel\FlowQuery\FlowQuery;
 use Neos\Eel\FlowQuery\Operations\GetOperation;
 use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Log\ThrowableStorageInterface;
 use Neos\Flow\Mvc\ActionRequest;
 use Neos\Flow\Mvc\ActionResponse;
 use Neos\Flow\Mvc\Controller\ActionController;
@@ -168,6 +169,14 @@ class BackendServiceController extends ActionController
     protected $reloadNodesQueryHandler;
 
     /**
+     * Cant be named here $throwableStorage see https://github.com/neos/flow-development-collection/issues/2928
+     *
+     * @Flow\Inject
+     * @var ThrowableStorageInterface
+     */
+    protected $throwableStorage2;
+
+    /**
      * Set the controller context on the feedback collection after the controller
      * has been initialized
      */
@@ -227,6 +236,7 @@ class BackendServiceController extends ActionController
 
             $this->view->assign('value', $result);
         } catch (\Exception $e) {
+            $this->throwableStorage2->logThrowable($e);
             $this->view->assign('value', [
                 'error' => [
                     'class' => $e::class,
@@ -259,6 +269,7 @@ class BackendServiceController extends ActionController
 
             $this->view->assign('value', $result);
         } catch (\Exception $e) {
+            $this->throwableStorage2->logThrowable($e);
             $this->view->assign('value', [
                 'error' => [
                     'class' => $e::class,
@@ -294,6 +305,7 @@ class BackendServiceController extends ActionController
                 ]
             ]);
         } catch (\Exception $e) {
+            $this->throwableStorage2->logThrowable($e);
             $this->view->assign('value', [
                 'error' => [
                     'class' => $e::class,
@@ -333,6 +345,7 @@ class BackendServiceController extends ActionController
                 ]
             ]);
         } catch (\Exception $e) {
+            $this->throwableStorage2->logThrowable($e);
             $this->view->assign('value', [
                 'error' => [
                     'class' => $e::class,
@@ -372,6 +385,7 @@ class BackendServiceController extends ActionController
                 ]
             ]);
         } catch (\Exception $e) {
+            $this->throwableStorage2->logThrowable($e);
             $this->view->assign('value', [
                 'error' => [
                     'class' => $e::class,
