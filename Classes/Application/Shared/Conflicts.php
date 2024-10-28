@@ -27,12 +27,7 @@ final readonly class Conflicts implements \JsonSerializable, \Countable
 
     public function __construct(Conflict ...$items)
     {
-        $this->items = $items;
-    }
-
-    public static function builder(): ConflictsBuilder
-    {
-        return new ConflictsBuilder();
+        $this->items = array_values($items);
     }
 
     public function jsonSerialize(): mixed

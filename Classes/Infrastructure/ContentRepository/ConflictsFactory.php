@@ -44,6 +44,7 @@ use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Utility\Algorithms;
 use Neos\Neos\Domain\NodeLabel\NodeLabelGeneratorInterface;
 use Neos\Neos\Domain\Service\NodeTypeNameFactory;
 use Neos\Neos\Ui\Application\Shared\Conflict;
@@ -76,14 +77,18 @@ final class ConflictsFactory
     public function fromWorkspaceRebaseFailed(
         WorkspaceRebaseFailed $workspaceRebaseFailed
     ): Conflicts {
-        $conflictsBuilder = Conflicts::builder();
+        /** @var array<string,Conflict> */
+        $conflictsByKey = [];
 
         foreach ($workspaceRebaseFailed->commandsThatFailedDuringRebase as $commandThatFailedDuringRebase) {
             $conflict = $this->createConflictFromCommandThatFailedDuringRebase($commandThatFailedDuringRebase);
-            $conflictsBuilder->addConflict($conflict);
+            if (array_key_exists($conflict->key, $conflictsByKey)) {
+                // deduplicate if the conflict affects the same node
+                $conflictsByKey[$conflict->key] = $conflict;
+            }
         }
 
-        return $conflictsBuilder->build();
+        return new Conflicts(...$conflictsByKey);
     }
 
     private function createConflictFromCommandThatFailedDuringRebase(
