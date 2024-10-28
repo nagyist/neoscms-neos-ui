@@ -114,8 +114,8 @@ final class ConflictsFactory
 
         return new Conflict(
             key: $affectedNode
-                 ? $affectedNode->aggregateId->value
-                : 'command-' . $commandThatFailedDuringRebase->sequenceNumber->value,
+                ? $affectedNode->aggregateId->value
+                : Algorithms::generateUUID(),
             affectedSite: $affectedSite
                 ? $this->createIconLabelForNode($affectedSite)
                 : null,
