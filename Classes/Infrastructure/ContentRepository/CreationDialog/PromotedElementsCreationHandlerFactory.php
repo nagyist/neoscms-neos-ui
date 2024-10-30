@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Neos\Neos\Ui\Infrastructure\ContentRepository\CreationDialog;
 
 use Neos\ContentRepository\Core\ContentRepository;
-use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesToWrite;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesForName;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
@@ -38,7 +38,7 @@ final class PromotedElementsCreationHandlerFactory implements NodeCreationHandle
                     return $commands;
                 }
                 $propertyValues = $commands->first->initialPropertyValues;
-                $initialReferences = null;
+                $initialReferences = $commands->first->references;
                 foreach ($elements as $elementName => $elementValue) {
                     // handle properties
                     if ($nodeType->hasProperty($elementName)) {
@@ -56,18 +56,19 @@ final class PromotedElementsCreationHandlerFactory implements NodeCreationHandle
                         assert($elementValue instanceof NodeAggregateIds);
                         $referenceConfiguration = $nodeType->getReferences()[$elementName];
                         if (($referenceConfiguration['ui']['showInCreationDialog'] ?? false) === true) {
-                            $referencesToWriteForCurrentElement = NodeReferencesToWrite::fromNameAndTargets(ReferenceName::fromString($elementName), $elementValue);
-                            $initialReferences = $initialReferences === null ? $referencesToWriteForCurrentElement : $initialReferences->merge($referencesToWriteForCurrentElement);
+                            $initialReferences = $initialReferences->withReference(
+                                NodeReferencesForName::fromNameAndTargets(
+                                    ReferenceName::fromString($elementName),
+                                    $elementValue
+                                )
+                            );
                         }
                     }
                 }
 
-                if ($initialReferences !== null) {
-                    $commands = $commands->withInitialReferences($initialReferences);
-                }
-
                 return $commands
-                    ->withInitialPropertyValues($propertyValues);
+                    ->withInitialPropertyValues($propertyValues)
+                    ->withInitialReferences($initialReferences);
             }
         };
     }
