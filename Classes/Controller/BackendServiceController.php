@@ -601,10 +601,10 @@ class BackendServiceController extends ActionController
                     : $this->contentRepositoryAuthorizationService->getNodePermissionsForAccount($node, $authenticatedAccount);
                 $result[$nodeAddress->toJson()] = [
                     'policy' => [
-                        'disallowedNodeTypes' => [],
+                        'disallowedNodeTypes' => [], // not implemented for Neos 9.0
                         'canRemove' => $nodePrivileges->edit,
                         'canEdit' => $nodePrivileges->edit,
-                        'disallowedProperties' => []
+                        'disallowedProperties' => [] // not implemented for Neos 9.0
                     ]
                     //'dimensions' => $this->getCurrentDimensionPresetIdentifiersForNode($node),
                     //'otherNodeVariants' => $otherNodeVariants
