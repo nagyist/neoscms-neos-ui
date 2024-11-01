@@ -57,7 +57,7 @@ final class PromotedElementsCreationHandlerFactory implements NodeCreationHandle
                         $referenceConfiguration = $nodeType->getReferences()[$elementName];
                         if (($referenceConfiguration['ui']['showInCreationDialog'] ?? false) === true) {
                             $initialReferences = $initialReferences->withReference(
-                                NodeReferencesForName::fromNameAndTargets(
+                                NodeReferencesForName::fromTargets(
                                     ReferenceName::fromString($elementName),
                                     $elementValue
                                 )

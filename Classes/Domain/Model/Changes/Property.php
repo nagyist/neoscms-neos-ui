@@ -240,8 +240,8 @@ class Property extends AbstractChange
                 $subject->workspaceName,
                 $subject->aggregateId,
                 $subject->originDimensionSpacePoint,
-                NodeReferencesToWrite::fromReferences(
-                    NodeReferencesForName::fromNameAndTargets(
+                NodeReferencesToWrite::create(
+                    NodeReferencesForName::fromTargets(
                         ReferenceName::fromString($propertyName),
                         NodeAggregateIds::fromArray($destinationNodeAggregateIds)
                     )
