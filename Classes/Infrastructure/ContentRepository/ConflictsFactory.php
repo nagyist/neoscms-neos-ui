@@ -14,9 +14,9 @@ declare(strict_types=1);
 
 namespace Neos\Neos\Ui\Infrastructure\ContentRepository;
 
-use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
+use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
@@ -139,7 +139,7 @@ final class ConflictsFactory
         );
     }
 
-    private function extractNodeAggregateIdFromCommand(CommandInterface $command): ?NodeAggregateId
+    private function extractNodeAggregateIdFromCommand(RebasableToOtherWorkspaceInterface $command): ?NodeAggregateId
     {
         return match (true) {
             $command instanceof MoveNodeAggregate,
@@ -163,7 +163,7 @@ final class ConflictsFactory
     }
 
     private function acquireSubgraphFromCommand(
-        CommandInterface $command,
+        RebasableToOtherWorkspaceInterface $command,
         ?NodeAggregateId $nodeAggregateIdForDimensionFallback
     ): ?ContentSubgraphInterface {
         if ($this->workspace === null) {
@@ -248,7 +248,7 @@ final class ConflictsFactory
     }
 
     private function createTypeOfChangeFromCommand(
-        CommandInterface $command
+        RebasableToOtherWorkspaceInterface $command
     ): ?TypeOfChange {
         return match (true) {
             $command instanceof CreateNodeAggregateWithNode,
