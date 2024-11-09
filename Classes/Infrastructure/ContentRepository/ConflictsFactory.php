@@ -17,14 +17,11 @@ namespace Neos\Neos\Ui\Infrastructure\ContentRepository;
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
-use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNode;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetNodeReferences;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
 use Neos\ContentRepository\Core\Feature\NodeRemoval\Command\RemoveNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeTypeChange\Command\ChangeNodeAggregateType;
@@ -94,11 +91,9 @@ final class ConflictsFactory
     private function createConflictFromCommandThatFailedDuringRebase(
         CommandThatFailedDuringRebase $commandThatFailedDuringRebase
     ): Conflict {
-        $nodeAggregateId = $this->extractNodeAggregateIdFromCommand(
-            $commandThatFailedDuringRebase->command
-        );
+        $nodeAggregateId = $commandThatFailedDuringRebase->getAffectedNodeAggregateId();
         $subgraph = $this->acquireSubgraphFromCommand(
-            $commandThatFailedDuringRebase->command,
+            $commandThatFailedDuringRebase->getCommand(),
             $nodeAggregateId
         );
         $affectedSite = $nodeAggregateId
@@ -131,35 +126,12 @@ final class ConflictsFactory
                 ? $this->createIconLabelForNode($affectedNode)
                 : null,
             typeOfChange: $this->createTypeOfChangeFromCommand(
-                $commandThatFailedDuringRebase->command
+                $commandThatFailedDuringRebase->getCommand()
             ),
             reasonForConflict: $this->createReasonForConflictFromException(
-                $commandThatFailedDuringRebase->exception
+                $commandThatFailedDuringRebase->getException()
             )
         );
-    }
-
-    private function extractNodeAggregateIdFromCommand(RebasableToOtherWorkspaceInterface $command): ?NodeAggregateId
-    {
-        return match (true) {
-            $command instanceof MoveNodeAggregate,
-            $command instanceof SetNodeProperties,
-            $command instanceof SetSerializedNodeProperties,
-            $command instanceof CreateNodeAggregateWithNode,
-            $command instanceof CreateNodeAggregateWithNodeAndSerializedProperties,
-            $command instanceof TagSubtree,
-            $command instanceof DisableNodeAggregate,
-            $command instanceof UntagSubtree,
-            $command instanceof EnableNodeAggregate,
-            $command instanceof RemoveNodeAggregate,
-            $command instanceof ChangeNodeAggregateType,
-            $command instanceof CreateNodeVariant =>
-                $command->nodeAggregateId,
-            $command instanceof SetNodeReferences,
-            $command instanceof SetSerializedNodeReferences =>
-                $command->sourceNodeAggregateId,
-            default => null
-        };
     }
 
     private function acquireSubgraphFromCommand(
@@ -170,26 +142,23 @@ final class ConflictsFactory
             return null;
         }
 
-        $dimensionSpacePoint = match (true) {
-            $command instanceof MoveNodeAggregate =>
+        $dimensionSpacePoint = match ($command::class) {
+            MoveNodeAggregate::class =>
                 $command->dimensionSpacePoint,
-            $command instanceof SetNodeProperties,
-            $command instanceof SetSerializedNodeProperties,
-            $command instanceof CreateNodeAggregateWithNode,
-            $command instanceof CreateNodeAggregateWithNodeAndSerializedProperties =>
+            SetSerializedNodeProperties::class,
+            CreateNodeAggregateWithNodeAndSerializedProperties::class =>
                 $command->originDimensionSpacePoint->toDimensionSpacePoint(),
-            $command instanceof SetNodeReferences,
-            $command instanceof SetSerializedNodeReferences =>
+            SetSerializedNodeReferences::class =>
                 $command->sourceOriginDimensionSpacePoint->toDimensionSpacePoint(),
-            $command instanceof TagSubtree,
-            $command instanceof DisableNodeAggregate,
-            $command instanceof UntagSubtree,
-            $command instanceof EnableNodeAggregate,
-            $command instanceof RemoveNodeAggregate =>
+            TagSubtree::class,
+            DisableNodeAggregate::class,
+            UntagSubtree::class,
+            EnableNodeAggregate::class,
+            RemoveNodeAggregate::class =>
                 $command->coveredDimensionSpacePoint,
-            $command instanceof ChangeNodeAggregateType =>
+            ChangeNodeAggregateType::class =>
                 null,
-            $command instanceof CreateNodeVariant =>
+            CreateNodeVariant::class =>
                 $command->targetOrigin->toDimensionSpacePoint(),
             default => null
         };
@@ -250,24 +219,21 @@ final class ConflictsFactory
     private function createTypeOfChangeFromCommand(
         RebasableToOtherWorkspaceInterface $command
     ): ?TypeOfChange {
-        return match (true) {
-            $command instanceof CreateNodeAggregateWithNode,
-            $command instanceof CreateNodeAggregateWithNodeAndSerializedProperties,
-            $command instanceof CreateNodeVariant =>
+        return match ($command::class) {
+            CreateNodeAggregateWithNodeAndSerializedProperties::class,
+            CreateNodeVariant::class =>
                 TypeOfChange::NODE_HAS_BEEN_CREATED,
-            $command instanceof SetNodeProperties,
-            $command instanceof SetSerializedNodeProperties,
-            $command instanceof SetNodeReferences,
-            $command instanceof SetSerializedNodeReferences,
-            $command instanceof TagSubtree,
-            $command instanceof DisableNodeAggregate,
-            $command instanceof UntagSubtree,
-            $command instanceof EnableNodeAggregate,
-            $command instanceof ChangeNodeAggregateType =>
+            SetSerializedNodeProperties::class,
+            SetSerializedNodeReferences::class,
+            TagSubtree::class,
+            DisableNodeAggregate::class,
+            UntagSubtree::class,
+            EnableNodeAggregate::class,
+            ChangeNodeAggregateType::class =>
                 TypeOfChange::NODE_HAS_BEEN_CHANGED,
-            $command instanceof MoveNodeAggregate =>
+            MoveNodeAggregate::class =>
                 TypeOfChange::NODE_HAS_BEEN_MOVED,
-            $command instanceof RemoveNodeAggregate =>
+            RemoveNodeAggregate::class =>
                 TypeOfChange::NODE_HAS_BEEN_DELETED,
             default => null
         };
