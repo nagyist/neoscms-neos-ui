@@ -76,9 +76,9 @@ final class ConflictsFactory
         /** @var array<string,Conflict> */
         $conflictsByKey = [];
 
-        foreach ($workspaceRebaseFailed->conflictingEvents as $eventThatFailedDuringRebase) {
-            $conflict = $this->createConflictFromEventThatFailedDuringRebase($eventThatFailedDuringRebase);
-            if (array_key_exists($conflict->key, $conflictsByKey)) {
+        foreach ($workspaceRebaseFailed->conflictingEvents as $conflictingEvent) {
+            $conflict = $this->createConflict($conflictingEvent);
+            if (!array_key_exists($conflict->key, $conflictsByKey)) {
                 // deduplicate if the conflict affects the same node
                 $conflictsByKey[$conflict->key] = $conflict;
             }
