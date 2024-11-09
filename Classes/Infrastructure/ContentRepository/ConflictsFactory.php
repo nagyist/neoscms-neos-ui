@@ -27,7 +27,7 @@ use Neos\ContentRepository\Core\Feature\NodeVariation\Event\NodeGeneralizationVa
 use Neos\ContentRepository\Core\Feature\NodeVariation\Event\NodePeerVariantWasCreated;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasTagged;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasUntagged;
-use Neos\ContentRepository\Core\Feature\WorkspaceRebase\EventThatFailedDuringRebase;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\ConflictingEvent;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
@@ -76,7 +76,7 @@ final class ConflictsFactory
         /** @var array<string,Conflict> */
         $conflictsByKey = [];
 
-        foreach ($workspaceRebaseFailed->eventsThatFailedDuringRebase as $eventThatFailedDuringRebase) {
+        foreach ($workspaceRebaseFailed->conflictingEvents as $eventThatFailedDuringRebase) {
             $conflict = $this->createConflictFromEventThatFailedDuringRebase($eventThatFailedDuringRebase);
             if (array_key_exists($conflict->key, $conflictsByKey)) {
                 // deduplicate if the conflict affects the same node
@@ -88,7 +88,7 @@ final class ConflictsFactory
     }
 
     private function createConflictFromEventThatFailedDuringRebase(
-        EventThatFailedDuringRebase $eventThatFailedDuringRebase
+        ConflictingEvent $eventThatFailedDuringRebase
     ): Conflict {
         $nodeAggregateId = $eventThatFailedDuringRebase->getAffectedNodeAggregateId();
         $subgraph = $this->acquireSubgraph(
