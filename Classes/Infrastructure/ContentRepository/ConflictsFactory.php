@@ -16,19 +16,18 @@ namespace Neos\Neos\Ui\Infrastructure\ContentRepository;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
-use Neos\ContentRepository\Core\Feature\Common\RebasableToOtherWorkspaceInterface;
-use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregateWithNodeAndSerializedProperties;
-use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetSerializedNodeProperties;
-use Neos\ContentRepository\Core\Feature\NodeMove\Command\MoveNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetSerializedNodeReferences;
-use Neos\ContentRepository\Core\Feature\NodeRemoval\Command\RemoveNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeTypeChange\Command\ChangeNodeAggregateType;
-use Neos\ContentRepository\Core\Feature\NodeVariation\Command\CreateNodeVariant;
-use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\TagSubtree;
-use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\UntagSubtree;
-use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandThatFailedDuringRebase;
+use Neos\ContentRepository\Core\EventStore\EventInterface;
+use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNodeWasCreated;
+use Neos\ContentRepository\Core\Feature\NodeModification\Event\NodePropertiesWereSet;
+use Neos\ContentRepository\Core\Feature\NodeMove\Event\NodeAggregateWasMoved;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Event\NodeReferencesWereSet;
+use Neos\ContentRepository\Core\Feature\NodeRemoval\Event\NodeAggregateWasRemoved;
+use Neos\ContentRepository\Core\Feature\NodeTypeChange\Event\NodeAggregateTypeWasChanged;
+use Neos\ContentRepository\Core\Feature\NodeVariation\Event\NodeGeneralizationVariantWasCreated;
+use Neos\ContentRepository\Core\Feature\NodeVariation\Event\NodePeerVariantWasCreated;
+use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasTagged;
+use Neos\ContentRepository\Core\Feature\SubtreeTagging\Event\SubtreeWasUntagged;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\EventThatFailedDuringRebase;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
@@ -77,8 +76,8 @@ final class ConflictsFactory
         /** @var array<string,Conflict> */
         $conflictsByKey = [];
 
-        foreach ($workspaceRebaseFailed->commandsThatFailedDuringRebase as $commandThatFailedDuringRebase) {
-            $conflict = $this->createConflictFromCommandThatFailedDuringRebase($commandThatFailedDuringRebase);
+        foreach ($workspaceRebaseFailed->eventsThatFailedDuringRebase as $eventThatFailedDuringRebase) {
+            $conflict = $this->createConflictFromEventThatFailedDuringRebase($eventThatFailedDuringRebase);
             if (array_key_exists($conflict->key, $conflictsByKey)) {
                 // deduplicate if the conflict affects the same node
                 $conflictsByKey[$conflict->key] = $conflict;
@@ -88,12 +87,12 @@ final class ConflictsFactory
         return new Conflicts(...$conflictsByKey);
     }
 
-    private function createConflictFromCommandThatFailedDuringRebase(
-        CommandThatFailedDuringRebase $commandThatFailedDuringRebase
+    private function createConflictFromEventThatFailedDuringRebase(
+        EventThatFailedDuringRebase $eventThatFailedDuringRebase
     ): Conflict {
-        $nodeAggregateId = $commandThatFailedDuringRebase->getAffectedNodeAggregateId();
-        $subgraph = $this->acquireSubgraphFromCommand(
-            $commandThatFailedDuringRebase->getCommand(),
+        $nodeAggregateId = $eventThatFailedDuringRebase->getAffectedNodeAggregateId();
+        $subgraph = $this->acquireSubgraph(
+            $eventThatFailedDuringRebase->getEvent(),
             $nodeAggregateId
         );
         $affectedSite = $nodeAggregateId
@@ -125,41 +124,42 @@ final class ConflictsFactory
             affectedNode: $affectedNode
                 ? $this->createIconLabelForNode($affectedNode)
                 : null,
-            typeOfChange: $this->createTypeOfChangeFromCommand(
-                $commandThatFailedDuringRebase->getCommand()
+            typeOfChange: $this->createTypeOfChange(
+                $eventThatFailedDuringRebase->getEvent()
             ),
             reasonForConflict: $this->createReasonForConflictFromException(
-                $commandThatFailedDuringRebase->getException()
+                $eventThatFailedDuringRebase->getException()
             )
         );
     }
 
-    private function acquireSubgraphFromCommand(
-        RebasableToOtherWorkspaceInterface $command,
+    private function acquireSubgraph(
+        EventInterface $event,
         ?NodeAggregateId $nodeAggregateIdForDimensionFallback
     ): ?ContentSubgraphInterface {
         if ($this->workspace === null) {
             return null;
         }
 
-        $dimensionSpacePoint = match ($command::class) {
-            MoveNodeAggregate::class =>
-                $command->dimensionSpacePoint,
-            SetSerializedNodeProperties::class,
-            CreateNodeAggregateWithNodeAndSerializedProperties::class =>
-                $command->originDimensionSpacePoint->toDimensionSpacePoint(),
-            SetSerializedNodeReferences::class =>
-                $command->sourceOriginDimensionSpacePoint->toDimensionSpacePoint(),
-            TagSubtree::class,
-            DisableNodeAggregate::class,
-            UntagSubtree::class,
-            EnableNodeAggregate::class,
-            RemoveNodeAggregate::class =>
-                $command->coveredDimensionSpacePoint,
-            ChangeNodeAggregateType::class =>
+        $dimensionSpacePoint = match ($event::class) {
+            NodeAggregateWasMoved::class =>
+                $event->succeedingSiblingsForCoverage->toDimensionSpacePointSet()->getFirst(),
+            NodePropertiesWereSet::class,
+            NodeAggregateWithNodeWasCreated::class =>
+                $event->originDimensionSpacePoint->toDimensionSpacePoint(),
+            NodeReferencesWereSet::class =>
+                $event->affectedSourceOriginDimensionSpacePoints->toDimensionSpacePointSet()->getFirst(),
+            SubtreeWasTagged::class,
+            SubtreeWasUntagged::class =>
+                $event->affectedDimensionSpacePoints->getFirst(),
+            NodeAggregateWasRemoved::class =>
+                $event->affectedCoveredDimensionSpacePoints->getFirst(),
+            NodeAggregateTypeWasChanged::class =>
                 null,
-            CreateNodeVariant::class =>
-                $command->targetOrigin->toDimensionSpacePoint(),
+            NodePeerVariantWasCreated::class =>
+                $event->peerOrigin->toDimensionSpacePoint(),
+            NodeGeneralizationVariantWasCreated::class =>
+                $event->generalizationOrigin->toDimensionSpacePoint(),
             default => null
         };
 
@@ -216,24 +216,23 @@ final class ConflictsFactory
         );
     }
 
-    private function createTypeOfChangeFromCommand(
-        RebasableToOtherWorkspaceInterface $command
+    private function createTypeOfChange(
+        EventInterface $event
     ): ?TypeOfChange {
-        return match ($command::class) {
-            CreateNodeAggregateWithNodeAndSerializedProperties::class,
-            CreateNodeVariant::class =>
+        return match ($event::class) {
+            NodeAggregateWithNodeWasCreated::class,
+            NodePeerVariantWasCreated::class,
+            NodeGeneralizationVariantWasCreated::class =>
                 TypeOfChange::NODE_HAS_BEEN_CREATED,
-            SetSerializedNodeProperties::class,
-            SetSerializedNodeReferences::class,
-            TagSubtree::class,
-            DisableNodeAggregate::class,
-            UntagSubtree::class,
-            EnableNodeAggregate::class,
-            ChangeNodeAggregateType::class =>
+            NodePropertiesWereSet::class,
+            NodeReferencesWereSet::class,
+            SubtreeWasTagged::class,
+            SubtreeWasUntagged::class,
+            NodeAggregateTypeWasChanged::class =>
                 TypeOfChange::NODE_HAS_BEEN_CHANGED,
-            MoveNodeAggregate::class =>
+            NodeAggregateWasMoved::class =>
                 TypeOfChange::NODE_HAS_BEEN_MOVED,
-            RemoveNodeAggregate::class =>
+            NodeAggregateWasRemoved::class =>
                 TypeOfChange::NODE_HAS_BEEN_DELETED,
             default => null
         };
