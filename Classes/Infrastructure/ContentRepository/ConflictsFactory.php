@@ -87,12 +87,12 @@ final class ConflictsFactory
         return new Conflicts(...$conflictsByKey);
     }
 
-    private function createConflictFromEventThatFailedDuringRebase(
-        ConflictingEvent $eventThatFailedDuringRebase
+    private function createConflict(
+        ConflictingEvent $conflictingEvent
     ): Conflict {
-        $nodeAggregateId = $eventThatFailedDuringRebase->getAffectedNodeAggregateId();
+        $nodeAggregateId = $conflictingEvent->getAffectedNodeAggregateId();
         $subgraph = $this->acquireSubgraph(
-            $eventThatFailedDuringRebase->getEvent(),
+            $conflictingEvent->getEvent(),
             $nodeAggregateId
         );
         $affectedSite = $nodeAggregateId
@@ -125,10 +125,10 @@ final class ConflictsFactory
                 ? $this->createIconLabelForNode($affectedNode)
                 : null,
             typeOfChange: $this->createTypeOfChange(
-                $eventThatFailedDuringRebase->getEvent()
+                $conflictingEvent->getEvent()
             ),
             reasonForConflict: $this->createReasonForConflictFromException(
-                $eventThatFailedDuringRebase->getException()
+                $conflictingEvent->getException()
             )
         );
     }
