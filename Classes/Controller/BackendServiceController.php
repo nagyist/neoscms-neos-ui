@@ -17,14 +17,13 @@ namespace Neos\Neos\Ui\Controller;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Exception\WorkspaceIsNotEmptyException;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
-use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateCurrentlyDoesNotExist;
-use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Eel\FlowQuery\FlowQuery;
 use Neos\Eel\FlowQuery\Operations\GetOperation;
 use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Log\ThrowableStorageInterface;
 use Neos\Flow\Mvc\ActionRequest;
 use Neos\Flow\Mvc\ActionResponse;
 use Neos\Flow\Mvc\Controller\ActionController;
@@ -40,11 +39,12 @@ use Neos\Neos\Ui\Application\ChangeTargetWorkspace;
 use Neos\Neos\Ui\Application\DiscardAllChanges;
 use Neos\Neos\Ui\Application\DiscardChangesInDocument;
 use Neos\Neos\Ui\Application\DiscardChangesInSite;
-use Neos\Neos\Ui\Application\PublishChangesInDocument;
-use Neos\Neos\Ui\Application\PublishChangesInSite;
+use Neos\Neos\Ui\Application\PublishChangesInDocument\PublishChangesInDocumentCommand;
+use Neos\Neos\Ui\Application\PublishChangesInDocument\PublishChangesInDocumentCommandHandler;
+use Neos\Neos\Ui\Application\PublishChangesInSite\PublishChangesInSiteCommand;
+use Neos\Neos\Ui\Application\PublishChangesInSite\PublishChangesInSiteCommandHandler;
 use Neos\Neos\Ui\Application\ReloadNodes\ReloadNodesQuery;
 use Neos\Neos\Ui\Application\ReloadNodes\ReloadNodesQueryHandler;
-use Neos\Neos\Ui\Application\SyncWorkspace\ConflictsOccurred;
 use Neos\Neos\Ui\Application\SyncWorkspace\SyncWorkspaceCommand;
 use Neos\Neos\Ui\Application\SyncWorkspace\SyncWorkspaceCommandHandler;
 use Neos\Neos\Ui\ContentRepository\Service\NeosUiNodeService;
@@ -146,6 +146,18 @@ class BackendServiceController extends ActionController
 
     /**
      * @Flow\Inject
+     * @var PublishChangesInSiteCommandHandler
+     */
+    protected $publishChangesInSiteCommandHandler;
+
+    /**
+     * @Flow\Inject
+     * @var PublishChangesInDocumentCommandHandler
+     */
+    protected $publishChangesInDocumentCommandHandler;
+
+    /**
+     * @Flow\Inject
      * @var SyncWorkspaceCommandHandler
      */
     protected $syncWorkspaceCommandHandler;
@@ -155,6 +167,14 @@ class BackendServiceController extends ActionController
      * @var ReloadNodesQueryHandler
      */
     protected $reloadNodesQueryHandler;
+
+    /**
+     * Cant be named here $throwableStorage see https://github.com/neos/flow-development-collection/issues/2928
+     *
+     * @Flow\Inject
+     * @var ThrowableStorageInterface
+     */
+    protected $throwableStorage2;
 
     /**
      * @Flow\Inject
@@ -204,7 +224,7 @@ class BackendServiceController extends ActionController
     /**
      * Publish all changes in the current site
      *
-     * @phpstan-param array<string,string> $command
+     * @phpstan-param array{workspaceName:string,siteId:string,preferredDimensionSpacePoint?:array<string,string[]>} $command
      */
     public function publishChangesInSiteAction(array $command): void
     {
@@ -215,19 +235,14 @@ class BackendServiceController extends ActionController
             $command['siteId'] = NodeAddress::fromJsonString(
                 $command['siteId']
             )->aggregateId->value;
-            $command = PublishChangesInSite::fromArray($command);
-            $publishingResult = $this->workspacePublishingService->publishChangesInSite(
-                $command->contentRepositoryId,
-                $command->workspaceName,
-                $command->siteId,
-            );
-            $this->view->assign('value', [
-                'success' => [
-                    'numberOfAffectedChanges' => $publishingResult->numberOfPublishedChanges,
-                    'baseWorkspaceName' => $publishingResult->targetWorkspaceName->value
-                ]
-            ]);
+            $command = PublishChangesInSiteCommand::fromArray($command);
+
+            $result = $this->publishChangesInSiteCommandHandler
+                ->handle($command);
+
+            $this->view->assign('value', $result);
         } catch (\Exception $e) {
+            $this->throwableStorage2->logThrowable($e);
             $this->view->assign('value', [
                 'error' => [
                     'class' => $e::class,
@@ -242,7 +257,7 @@ class BackendServiceController extends ActionController
     /**
      * Publish all changes in the current document
      *
-     * @phpstan-param array<string,string> $command
+     * @phpstan-param array{workspaceName:string,documentId:string,preferredDimensionSpacePoint?:array<string,string[]>} $command
      */
     public function publishChangesInDocumentAction(array $command): void
     {
@@ -253,35 +268,14 @@ class BackendServiceController extends ActionController
             $command['documentId'] =  NodeAddress::fromJsonString(
                 $command['documentId']
             )->aggregateId->value;
-            $command = PublishChangesInDocument::fromArray($command);
+            $command = PublishChangesInDocumentCommand::fromArray($command);
 
-            try {
-                $publishingResult = $this->workspacePublishingService->publishChangesInDocument(
-                    $command->contentRepositoryId,
-                    $command->workspaceName,
-                    $command->documentId,
-                );
+            $result = $this->publishChangesInDocumentCommandHandler
+                ->handle($command);
 
-                $this->view->assign('value', [
-                    'success' => [
-                        'numberOfAffectedChanges' => $publishingResult->numberOfPublishedChanges,
-                        'baseWorkspaceName' => $publishingResult->targetWorkspaceName->value,
-                    ]
-                ]);
-            } catch (NodeAggregateCurrentlyDoesNotExist $e) {
-                throw new \RuntimeException(
-                    $this->getLabel('NodeNotPublishedMissingParentNode'),
-                    1705053430,
-                    $e
-                );
-            } catch (NodeAggregateDoesCurrentlyNotCoverDimensionSpacePoint $e) {
-                throw new \RuntimeException(
-                    $this->getLabel('NodeNotPublishedParentNodeNotInCurrentDimension'),
-                    1705053432,
-                    $e
-                );
-            }
+            $this->view->assign('value', $result);
         } catch (\Exception $e) {
+            $this->throwableStorage2->logThrowable($e);
             $this->view->assign('value', [
                 'error' => [
                     'class' => $e::class,
@@ -317,6 +311,7 @@ class BackendServiceController extends ActionController
                 ]
             ]);
         } catch (\Exception $e) {
+            $this->throwableStorage2->logThrowable($e);
             $this->view->assign('value', [
                 'error' => [
                     'class' => $e::class,
@@ -356,6 +351,7 @@ class BackendServiceController extends ActionController
                 ]
             ]);
         } catch (\Exception $e) {
+            $this->throwableStorage2->logThrowable($e);
             $this->view->assign('value', [
                 'error' => [
                     'class' => $e::class,
@@ -395,6 +391,7 @@ class BackendServiceController extends ActionController
                 ]
             ]);
         } catch (\Exception $e) {
+            $this->throwableStorage2->logThrowable($e);
             $this->view->assign('value', [
                 'error' => [
                     'class' => $e::class,
@@ -749,15 +746,9 @@ class BackendServiceController extends ActionController
                     : RebaseErrorHandlingStrategy::STRATEGY_FAIL
             );
 
-            $this->syncWorkspaceCommandHandler->handle($command);
+            $result = $this->syncWorkspaceCommandHandler->handle($command);
 
-            $this->view->assign('value', [
-                'success' => true
-            ]);
-        } catch (ConflictsOccurred $e) {
-            $this->view->assign('value', [
-                'conflicts' => $e->conflicts
-            ]);
+            $this->view->assign('value', $result);
         } catch (\Exception $e) {
             $this->view->assign('value', [
                 'error' => [

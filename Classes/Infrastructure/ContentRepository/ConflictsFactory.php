@@ -1,7 +1,7 @@
 <?php
 
 /*
- * This file is part of the Neos.Neos.Ui package.
+ * This file is part of the Neos.Neos package.
  *
  * (c) Contributors of the Neos Project - www.neos.io
  *
@@ -12,7 +12,7 @@
 
 declare(strict_types=1);
 
-namespace Neos\Neos\Ui\Application\SyncWorkspace;
+namespace Neos\Neos\Ui\Infrastructure\ContentRepository;
 
 use Neos\ContentRepository\Core\CommandHandler\CommandInterface;
 use Neos\ContentRepository\Core\ContentRepository;
@@ -32,71 +32,62 @@ use Neos\ContentRepository\Core\Feature\NodeVariation\Command\CreateNodeVariant;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\TagSubtree;
 use Neos\ContentRepository\Core\Feature\SubtreeTagging\Command\UntagSubtree;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\CommandThatFailedDuringRebase;
+use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Exception\WorkspaceRebaseFailed;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 use Neos\ContentRepository\Core\Projection\ContentGraph\ContentSubgraphInterface;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindClosestNodeFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\Projection\ContentGraph\NodeAggregate;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregateCurrentlyDoesNotExist;
-use Neos\ContentRepository\Core\SharedModel\Exception\WorkspaceDoesNotExist;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
+use Neos\ContentRepository\Core\SharedModel\Workspace\Workspace;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Utility\Algorithms;
 use Neos\Neos\Domain\NodeLabel\NodeLabelGeneratorInterface;
 use Neos\Neos\Domain\Service\NodeTypeNameFactory;
+use Neos\Neos\Ui\Application\Shared\Conflict;
+use Neos\Neos\Ui\Application\Shared\Conflicts;
+use Neos\Neos\Ui\Application\Shared\IconLabel;
+use Neos\Neos\Ui\Application\Shared\ReasonForConflict;
+use Neos\Neos\Ui\Application\Shared\TypeOfChange;
 
 /**
  * @internal
  */
 #[Flow\Proxy(false)]
-final class ConflictsBuilder
+final class ConflictsFactory
 {
     private NodeTypeManager $nodeTypeManager;
 
-    /**
-     * @var Conflict[]
-     */
-    private array $items = [];
-
-    /**
-     * @var array<string,Conflict>
-     */
-    private array $itemsByAffectedNodeAggregateId = [];
+    private ?Workspace $workspace;
 
     public function __construct(
-        private ContentRepository $contentRepository,
-        private NodeLabelGeneratorInterface $nodeLabelGenerator,
-        private WorkspaceName $workspaceName,
-        private ?DimensionSpacePoint $preferredDimensionSpacePoint,
+        private readonly ContentRepository $contentRepository,
+        private readonly NodeLabelGeneratorInterface $nodeLabelGenerator,
+        WorkspaceName $workspaceName,
+        private readonly ?DimensionSpacePoint $preferredDimensionSpacePoint,
     ) {
         $this->nodeTypeManager = $contentRepository->getNodeTypeManager();
+
+        $this->workspace = $contentRepository->findWorkspaceByName($workspaceName);
     }
 
-    public function addCommandThatFailedDuringRebase(
-        CommandThatFailedDuringRebase $commandThatFailedDuringRebase
-    ): void {
-        $nodeAggregateId = $this->extractNodeAggregateIdFromCommand(
-            $commandThatFailedDuringRebase->command
-        );
+    public function fromWorkspaceRebaseFailed(
+        WorkspaceRebaseFailed $workspaceRebaseFailed
+    ): Conflicts {
+        /** @var array<string,Conflict> */
+        $conflictsByKey = [];
 
-        if ($nodeAggregateId && isset($this->itemsByAffectedNodeAggregateId[$nodeAggregateId->value])) {
-            return;
+        foreach ($workspaceRebaseFailed->commandsThatFailedDuringRebase as $commandThatFailedDuringRebase) {
+            $conflict = $this->createConflictFromCommandThatFailedDuringRebase($commandThatFailedDuringRebase);
+            if (array_key_exists($conflict->key, $conflictsByKey)) {
+                // deduplicate if the conflict affects the same node
+                $conflictsByKey[$conflict->key] = $conflict;
+            }
         }
 
-        $conflict = $this->createConflictFromCommandThatFailedDuringRebase(
-            $commandThatFailedDuringRebase
-        );
-
-        $this->items[] = $conflict;
-
-        if ($nodeAggregateId) {
-            $this->itemsByAffectedNodeAggregateId[$nodeAggregateId->value] = $conflict;
-        }
-    }
-
-    public function build(): Conflicts
-    {
-        return new Conflicts(...$this->items);
+        return new Conflicts(...$conflictsByKey);
     }
 
     private function createConflictFromCommandThatFailedDuringRebase(
@@ -126,6 +117,9 @@ final class ConflictsBuilder
             : null;
 
         return new Conflict(
+            key: $affectedNode
+                ? $affectedNode->aggregateId->value
+                : Algorithms::generateUUID(),
             affectedSite: $affectedSite
                 ? $this->createIconLabelForNode($affectedSite)
                 : null,
@@ -171,9 +165,7 @@ final class ConflictsBuilder
         CommandInterface $command,
         ?NodeAggregateId $nodeAggregateIdForDimensionFallback
     ): ?ContentSubgraphInterface {
-        try {
-            $contentGraph = $this->contentRepository->getContentGraph($this->workspaceName);
-        } catch (WorkspaceDoesNotExist) {
+        if ($this->workspace === null) {
             return null;
         }
 
@@ -206,10 +198,9 @@ final class ConflictsBuilder
                 return null;
             }
 
-            $nodeAggregate = $contentGraph
-                ->findNodeAggregateById(
-                    $nodeAggregateIdForDimensionFallback
-                );
+            $nodeAggregate = $this->contentRepository
+                ->getContentGraph($this->workspace->workspaceName)
+                ->findNodeAggregateById($nodeAggregateIdForDimensionFallback);
 
             if ($nodeAggregate) {
                 $dimensionSpacePoint = $this->extractValidDimensionSpacePointFromNodeAggregate(
@@ -223,7 +214,7 @@ final class ConflictsBuilder
         }
 
         return $this->contentRepository->getContentSubgraph(
-            $this->workspaceName,
+            $this->workspace->workspaceName,
             $dimensionSpacePoint,
         );
     }
@@ -249,7 +240,7 @@ final class ConflictsBuilder
 
         return new IconLabel(
             icon: $nodeType?->getConfiguration('ui.icon') ?? 'questionmark',
-            label: $this->nodeLabelGenerator->getLabel($node)
+            label: $this->nodeLabelGenerator->getLabel($node),
         );
     }
 
