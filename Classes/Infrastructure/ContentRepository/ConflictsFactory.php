@@ -16,6 +16,7 @@ namespace Neos\Neos\Ui\Infrastructure\ContentRepository;
 
 use Neos\ContentRepository\Core\ContentRepository;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
+use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePointSet;
 use Neos\ContentRepository\Core\EventStore\EventInterface;
 use Neos\ContentRepository\Core\Feature\NodeCreation\Event\NodeAggregateWithNodeWasCreated;
 use Neos\ContentRepository\Core\Feature\NodeModification\Event\NodePropertiesWereSet;
@@ -143,17 +144,21 @@ final class ConflictsFactory
 
         $dimensionSpacePoint = match ($event::class) {
             NodeAggregateWasMoved::class =>
-                $event->succeedingSiblingsForCoverage->toDimensionSpacePointSet()->getFirst(),
+                // TODO it seems the event lost some information here from the intention
+                self::firstDimensionSpacePoint($event->succeedingSiblingsForCoverage->toDimensionSpacePointSet()),
             NodePropertiesWereSet::class,
             NodeAggregateWithNodeWasCreated::class =>
                 $event->originDimensionSpacePoint->toDimensionSpacePoint(),
             NodeReferencesWereSet::class =>
-                $event->affectedSourceOriginDimensionSpacePoints->toDimensionSpacePointSet()->getFirst(),
+                // TODO it seems the event lost some information here from the intention
+                self::firstDimensionSpacePoint($event->affectedSourceOriginDimensionSpacePoints->toDimensionSpacePointSet()),
             SubtreeWasTagged::class,
             SubtreeWasUntagged::class =>
-                $event->affectedDimensionSpacePoints->getFirst(),
+                // TODO it seems the event lost some information here from the intention
+                self::firstDimensionSpacePoint($event->affectedDimensionSpacePoints),
             NodeAggregateWasRemoved::class =>
-                $event->affectedCoveredDimensionSpacePoints->getFirst(),
+                // TODO it seems the event lost some information here from the intention
+                self::firstDimensionSpacePoint($event->affectedCoveredDimensionSpacePoints),
             NodeAggregateTypeWasChanged::class =>
                 null,
             NodePeerVariantWasCreated::class =>
@@ -246,5 +251,13 @@ final class ConflictsFactory
                 ReasonForConflict::NODE_HAS_BEEN_DELETED,
             default => null
         };
+    }
+
+    private static function firstDimensionSpacePoint(DimensionSpacePointSet $dimensionSpacePointSet): ?DimensionSpacePoint
+    {
+        foreach ($dimensionSpacePointSet->points as $point) {
+            return $point;
+        }
+        return null;
     }
 }
