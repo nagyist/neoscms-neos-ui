@@ -610,43 +610,6 @@ class BackendServiceController extends ActionController
     }
 
     /**
-     * @throws \Neos\Flow\Mvc\Exception\NoSuchArgumentException
-     */
-    public function initializeGetPolicyInformationAction(): void
-    {
-        $this->arguments->getArgument('nodes')->getPropertyMappingConfiguration()->allowAllProperties();
-    }
-
-    /**
-     * @phpstan-param list<NodeAddress> $nodes
-     */
-    public function getPolicyInformationAction(array $nodes): void
-    {
-        $result = [];
-        foreach ($nodes as $nodeAddress) {
-            $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
-            $subgraph = $contentRepository->getContentSubgraph(
-                $nodeAddress->workspaceName,
-                $nodeAddress->dimensionSpacePoint,
-            );
-            $node = $subgraph->findNodeById($nodeAddress->aggregateId);
-            if (!is_null($node)) {
-                $result[$nodeAddress->toJson()] = [
-                    // todo reimplement nodePolicyService
-                    'policy' => [
-                        'disallowedNodeTypes' => [],
-                        'canRemove' => true,
-                        'canEdit' => true,
-                        'disallowedProperties' => []
-                    ]
-                ];
-            }
-        }
-
-        $this->view->assign('value', $result);
-    }
-
-    /**
      * Build and execute a flow query chain
      *
      * @phpstan-param non-empty-list<array{type: string, payload: array<string|int, mixed>}> $chain
