@@ -101,17 +101,13 @@ final class ConfigurationProvider implements ConfigurationProviderInterface
      */
     private function getAllowedTargetWorkspaces(ContentRepository $contentRepository): array
     {
-        $authenticatedAccount = $this->securityContext->getAccount();
-        if ($authenticatedAccount === null) {
-            return [];
-        }
         $result = [];
         foreach ($contentRepository->findWorkspaces() as $workspace) {
             $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepository->id, $workspace->workspaceName);
             if (!in_array($workspaceMetadata->classification, [WorkspaceClassification::ROOT, WorkspaceClassification::SHARED], true)) {
                 continue;
             }
-            $workspacePermissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissionsForAccount($contentRepository->id, $workspace->workspaceName, $authenticatedAccount);
+            $workspacePermissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissions($contentRepository->id, $workspace->workspaceName, $this->securityContext->getRoles(), $this->userService->getBackendUser()?->getId());
             if ($workspacePermissions->read === false) {
                 continue;
             }

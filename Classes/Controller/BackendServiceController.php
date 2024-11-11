@@ -592,10 +592,7 @@ class BackendServiceController extends ActionController
                 return $this->getCurrentDimensionPresetIdentifiersForNode($node);
             }, $node->getOtherNodeVariants())));*/
             if (!is_null($node)) {
-                $authenticatedAccount = $this->securityContext->getAccount();
-                $nodePrivileges = $authenticatedAccount === null
-                    ? $this->contentRepositoryAuthorizationService->getNodePermissionsForAnonymousUser($node)
-                    : $this->contentRepositoryAuthorizationService->getNodePermissionsForAccount($node, $authenticatedAccount);
+                $nodePrivileges = $this->contentRepositoryAuthorizationService->getNodePermissions($node, $this->securityContext->getRoles());
                 $result[$nodeAddress->toJson()] = [
                     'policy' => [
                         'disallowedNodeTypes' => [], // not implemented for Neos 9.0
