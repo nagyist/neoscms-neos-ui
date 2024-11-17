@@ -18,7 +18,6 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindAncestorNodes
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindChildNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\NodeType\NodeTypeCriteria;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
-use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
@@ -51,10 +50,7 @@ final class ReloadNodesQueryHandler
     {
         $contentRepository = $this->contentRepositoryRegistry
             ->get($query->contentRepositoryId);
-        $subgraph = $contentRepository->getContentGraph($query->workspaceName)->getSubgraph(
-            $query->dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
-        );
+        $subgraph = $contentRepository->getContentSubgraph($query->workspaceName, $query->dimensionSpacePoint);
         $baseNodeTypeConstraints = NodeTypeCriteria::fromFilterString($this->baseNodeType);
 
         $documentNode = $subgraph->findNodeById($query->documentId);

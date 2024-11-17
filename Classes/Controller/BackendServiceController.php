@@ -17,7 +17,6 @@ namespace Neos\Neos\Ui\Controller;
 use Neos\ContentRepository\Core\DimensionSpace\DimensionSpacePoint;
 use Neos\ContentRepository\Core\Feature\WorkspaceModification\Exception\WorkspaceIsNotEmptyException;
 use Neos\ContentRepository\Core\Feature\WorkspaceRebase\Dto\RebaseErrorHandlingStrategy;
-use Neos\ContentRepository\Core\Projection\ContentGraph\VisibilityConstraints;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
@@ -34,6 +33,7 @@ use Neos\Flow\Security\Context;
 use Neos\Neos\Domain\Service\WorkspacePublishingService;
 use Neos\Neos\Domain\Service\WorkspaceService;
 use Neos\Neos\FrontendRouting\SiteDetection\SiteDetectionResult;
+use Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService;
 use Neos\Neos\Service\UserService;
 use Neos\Neos\Ui\Application\ChangeTargetWorkspace;
 use Neos\Neos\Ui\Application\DiscardAllChanges;
@@ -175,6 +175,12 @@ class BackendServiceController extends ActionController
      * @var ThrowableStorageInterface
      */
     protected $throwableStorage2;
+
+    /**
+     * @Flow\Inject
+     * @var ContentRepositoryAuthorizationService
+     */
+    protected $contentRepositoryAuthorizationService;
 
     /**
      * Set the controller context on the feedback collection after the controller
@@ -448,11 +454,10 @@ class BackendServiceController extends ActionController
         }
 
         $contentRepository = $this->contentRepositoryRegistry->get($documentNodeAddress->contentRepositoryId);
-        $subgraph = $contentRepository->getContentGraph($userWorkspace->workspaceName)
-            ->getSubgraph(
-                $command->documentNode->dimensionSpacePoint,
-                VisibilityConstraints::withoutRestrictions()
-            );
+        $subgraph = $contentRepository->getContentSubgraph(
+            $userWorkspace->workspaceName,
+            $command->documentNode->dimensionSpacePoint,
+        );
 
         $documentNodeInstance = $subgraph->findNodeById($command->documentNode->aggregateId);
         assert($documentNodeInstance !== null);
@@ -576,9 +581,9 @@ class BackendServiceController extends ActionController
         foreach ($nodes as $nodeAddressString) {
             $nodeAddress = NodeAddress::fromJsonString($nodeAddressString);
             $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
-            $subgraph = $contentRepository->getContentGraph($nodeAddress->workspaceName)->getSubgraph(
+            $subgraph = $contentRepository->getContentSubgraph(
+                $nodeAddress->workspaceName,
                 $nodeAddress->dimensionSpacePoint,
-                VisibilityConstraints::withoutRestrictions()
             );
             $node = $subgraph->findNodeById($nodeAddress->aggregateId);
 
@@ -587,53 +592,16 @@ class BackendServiceController extends ActionController
                 return $this->getCurrentDimensionPresetIdentifiersForNode($node);
             }, $node->getOtherNodeVariants())));*/
             if (!is_null($node)) {
+                $nodePrivileges = $this->contentRepositoryAuthorizationService->getNodePermissions($node, $this->securityContext->getRoles());
                 $result[$nodeAddress->toJson()] = [
-                    // todo reimplement nodePolicyService
                     'policy' => [
-                        'disallowedNodeTypes' => [],
-                        'canRemove' => true,
-                        'canEdit' => true,
-                        'disallowedProperties' => []
+                        'disallowedNodeTypes' => [], // not implemented for Neos 9.0
+                        'canRemove' => $nodePrivileges->edit,
+                        'canEdit' => $nodePrivileges->edit,
+                        'disallowedProperties' => [] // not implemented for Neos 9.0
                     ]
                     //'dimensions' => $this->getCurrentDimensionPresetIdentifiersForNode($node),
                     //'otherNodeVariants' => $otherNodeVariants
-                ];
-            }
-        }
-
-        $this->view->assign('value', $result);
-    }
-
-    /**
-     * @throws \Neos\Flow\Mvc\Exception\NoSuchArgumentException
-     */
-    public function initializeGetPolicyInformationAction(): void
-    {
-        $this->arguments->getArgument('nodes')->getPropertyMappingConfiguration()->allowAllProperties();
-    }
-
-    /**
-     * @phpstan-param list<NodeAddress> $nodes
-     */
-    public function getPolicyInformationAction(array $nodes): void
-    {
-        $result = [];
-        foreach ($nodes as $nodeAddress) {
-            $contentRepository = $this->contentRepositoryRegistry->get($nodeAddress->contentRepositoryId);
-            $subgraph = $contentRepository->getContentGraph($nodeAddress->workspaceName)->getSubgraph(
-                $nodeAddress->dimensionSpacePoint,
-                VisibilityConstraints::withoutRestrictions()
-            );
-            $node = $subgraph->findNodeById($nodeAddress->aggregateId);
-            if (!is_null($node)) {
-                $result[$nodeAddress->toJson()] = [
-                    // todo reimplement nodePolicyService
-                    'policy' => [
-                        'disallowedNodeTypes' => [],
-                        'canRemove' => true,
-                        'canEdit' => true,
-                        'disallowedProperties' => []
-                    ]
                 ];
             }
         }
@@ -701,9 +669,9 @@ class BackendServiceController extends ActionController
     {
         $contextNodeAddress = NodeAddress::fromJsonString($contextNode);
         $contentRepository = $this->contentRepositoryRegistry->get($contextNodeAddress->contentRepositoryId);
-        $subgraph = $contentRepository->getContentGraph($contextNodeAddress->workspaceName)->getSubgraph(
+        $subgraph = $contentRepository->getContentSubgraph(
+            $contextNodeAddress->workspaceName,
             $contextNodeAddress->dimensionSpacePoint,
-            VisibilityConstraints::withoutRestrictions()
         );
         $contextNode = $subgraph->findNodeById($contextNodeAddress->aggregateId);
 

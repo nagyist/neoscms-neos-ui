@@ -18,8 +18,10 @@ use Neos\ContentRepository\Core\ContentRepository;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Configuration\ConfigurationManager;
 use Neos\Flow\Mvc\Routing\UriBuilder;
+use Neos\Flow\Security\Context as SecurityContext;
 use Neos\Neos\Domain\Model\WorkspaceClassification;
 use Neos\Neos\Domain\Service\WorkspaceService;
+use Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService;
 use Neos\Neos\Service\UserService;
 use Neos\Neos\Ui\Domain\InitialData\CacheConfigurationVersionProviderInterface;
 use Neos\Neos\Ui\Domain\InitialData\ConfigurationProviderInterface;
@@ -34,10 +36,16 @@ final class ConfigurationProvider implements ConfigurationProviderInterface
     protected UserService $userService;
 
     #[Flow\Inject]
+    protected SecurityContext $securityContext;
+
+    #[Flow\Inject]
     protected ConfigurationManager $configurationManager;
 
     #[Flow\Inject]
     protected WorkspaceService $workspaceService;
+
+    #[Flow\Inject]
+    protected ContentRepositoryAuthorizationService $contentRepositoryAuthorizationService;
 
     #[Flow\Inject]
     protected CacheConfigurationVersionProviderInterface $cacheConfigurationVersionProvider;
@@ -93,17 +101,13 @@ final class ConfigurationProvider implements ConfigurationProviderInterface
      */
     private function getAllowedTargetWorkspaces(ContentRepository $contentRepository): array
     {
-        $backendUser = $this->userService->getBackendUser();
-        if ($backendUser === null) {
-            return [];
-        }
         $result = [];
         foreach ($contentRepository->findWorkspaces() as $workspace) {
             $workspaceMetadata = $this->workspaceService->getWorkspaceMetadata($contentRepository->id, $workspace->workspaceName);
             if (!in_array($workspaceMetadata->classification, [WorkspaceClassification::ROOT, WorkspaceClassification::SHARED], true)) {
                 continue;
             }
-            $workspacePermissions = $this->workspaceService->getWorkspacePermissionsForUser($contentRepository->id, $workspace->workspaceName, $backendUser);
+            $workspacePermissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissions($contentRepository->id, $workspace->workspaceName, $this->securityContext->getRoles(), $this->userService->getBackendUser()?->getId());
             if ($workspacePermissions->read === false) {
                 continue;
             }
