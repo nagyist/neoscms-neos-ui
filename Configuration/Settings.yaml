@@ -94,7 +94,7 @@ Neos:
       #################################
       # INTERNAL CONFIG (no API)
       #################################
-      frontendDevelopmentMode: true
+      frontendDevelopmentMode: false
       nodeTypeRoles:
         # The ignored types will never have metadata in the UI, they are invisible to the content module.
         ignored: 'unstructured'
@@ -139,7 +139,7 @@ Neos:
             src: '${Neos.Ui.NodeInfo.previewUri(documentNode, request)}'
             backgroundColor: '${Configuration.setting(''Neos.Neos.Ui.contentCanvas.backgroundColor'')}'
           debugMode: false
-          editPreviewMode: '${Configuration.setting(''Neos.Neos.userInterface.defaultEditPreviewMode'')}'
+          editPreviewMode: '${q(user).property("preferences.preferences")["contentEditing.editPreviewMode"] || Configuration.setting(''Neos.Neos.userInterface.defaultEditPreviewMode'')}'
           fullScreen:
             isFullScreen: false
           leftSideBar:
@@ -158,22 +158,22 @@ Neos:
           pageTree:
             isLoading: false
             hasError: false
-            focused: false
-            active: false
+            focused: '${[q(documentNode).property(''_contextPath'')]}'
+            active: '${q(documentNode).property(''_contextPath'')}'
           remote:
             isSaving: false
             isPublishing: false
             isDiscarding: false
         user:
           name:
-            title: 'title'
-            firstName: 'firsname'
-            middleName: 'middle'
-            lastName: 'last'
-            otherName: 'other'
-            fullName: 'full'
+            title: '${q(user).property(''name.title'')}'
+            firstName: '${q(user).property(''name.firstName'')}'
+            middleName: '${q(user).property(''name.middleName'')}'
+            lastName: '${q(user).property(''name.lastName'')}'
+            otherName: '${q(user).property(''name.otherName'')}'
+            fullName: '${q(user).property(''name.fullName'')}'
           preferences:
-            interfaceLanguage: '${Configuration.setting(''Neos.Neos.userInterface.defaultLanguage'')}'
+            interfaceLanguage: '${q(user).property(''preferences.interfaceLanguage'') || Configuration.setting(''Neos.Neos.userInterface.defaultLanguage'')}'
           settings:
             targetWorkspace: 'live'
       changes:
