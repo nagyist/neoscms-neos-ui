@@ -78,15 +78,20 @@ class MoveInto extends AbstractStructuralChange
                     ->equals($parentNode->aggregateId);
 
             $contentRepository = $this->contentRepositoryRegistry->get($subject->contentRepositoryId);
-            $nodeType = $contentRepository->getNodeTypeManager()->getNodeType($this->subject->nodeTypeName);
-            $strategy = $nodeType->getConfiguration('options.moveNodeStrategy') ?: throw new \RuntimeException('Nodetype is missing required option "moveNodeStrategy".', 1645577794);
-            $strategy = RelationDistributionStrategy::tryFrom($strategy) ?? throw new \RuntimeException('Nodetype has an invalid configuration for option "moveNodeStrategy".', 1645577794);
+            $rawMoveNodeStrategy = $this->getNodeType($this->subject)?->getConfiguration('options.moveNodeStrategy');
+            if (!is_string($rawMoveNodeStrategy)) {
+                throw new \RuntimeException(sprintf('NodeType "%s" has an invalid configuration for option "moveNodeStrategy" expected string got %s', $this->subject->nodeTypeName->value, get_debug_type($rawMoveNodeStrategy)), 1732010016);
+            }
+            $moveNodeStrategy = RelationDistributionStrategy::tryFrom($rawMoveNodeStrategy);
+            if ($moveNodeStrategy === null) {
+                throw new \RuntimeException(sprintf('NodeType "%s" has an invalid configuration for option "moveNodeStrategy" got %s', $this->subject->nodeTypeName->value, $rawMoveNodeStrategy), 1732010011);
+            }
             $contentRepository->handle(
                 MoveNodeAggregate::create(
                     $subject->workspaceName,
                     $subject->dimensionSpacePoint,
                     $subject->aggregateId,
-                    $strategy,
+                    $moveNodeStrategy,
                     $hasEqualParentNode ? null : $parentNode->aggregateId,
                 )
             );
