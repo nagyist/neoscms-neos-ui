@@ -13,8 +13,11 @@ namespace Neos\Neos\Ui\Domain\Model\Changes;
  */
 
 use Neos\ContentRepository\Core\DimensionSpace\OriginDimensionSpacePoint;
-use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursively;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateId;
+use Neos\Neos\Domain\Service\NodeDuplication\NodeAggregateIdMapping;
+use Neos\Neos\Domain\Service\NodeDuplicationService;
+use Neos\Flow\Annotations as Flow;
 
 /**
  * @internal These objects internally reflect possible operations made by the Neos.Ui.
@@ -23,6 +26,9 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
  */
 class CopyInto extends AbstractStructuralChange
 {
+    #[Flow\Inject()]
+    protected NodeDuplicationService $nodeDuplicationService;
+
     protected ?string $parentContextPath;
 
     protected ?Node $cachedParentNode = null;
@@ -66,22 +72,18 @@ class CopyInto extends AbstractStructuralChange
         $subject = $this->getSubject();
         $parentNode = $this->getParentNode();
         if ($parentNode && $this->canApply()) {
-            $contentRepository = $this->contentRepositoryRegistry->get($subject->contentRepositoryId);
-            $command = CopyNodesRecursively::createFromSubgraphAndStartNode(
-                $contentRepository->getContentGraph($subject->workspaceName)->getSubgraph(
-                    $subject->dimensionSpacePoint,
-                    $subject->visibilityConstraints
-                ),
+            $this->nodeDuplicationService->copyNodesRecursively(
+                $subject->contentRepositoryId,
                 $subject->workspaceName,
-                $subject,
+                $subject->dimensionSpacePoint,
+                $subject->aggregateId,
                 OriginDimensionSpacePoint::fromDimensionSpacePoint($subject->dimensionSpacePoint),
                 $parentNode->aggregateId,
-                null
+                null,
+                NodeAggregateIdMapping::createEmpty()
+                    ->withNewNodeAggregateId($subject->aggregateId, $newlyCreatedNodeId = NodeAggregateId::create())
             );
-            $contentRepository->handle($command);
 
-            $newlyCreatedNodeId = $command->nodeAggregateIdMapping->getNewNodeAggregateId($subject->aggregateId);
-            assert($newlyCreatedNodeId !== null); // cannot happen
             $newlyCreatedNode = $this->contentRepositoryRegistry->subgraphForNode($parentNode)
                 ->findNodeById($newlyCreatedNodeId);
             if (!$newlyCreatedNode) {
