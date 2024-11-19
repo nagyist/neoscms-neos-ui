@@ -59,21 +59,15 @@ dc exec -T php bash <<-BASH
     rm -rf ./TestDistribution/DistributionPackages/Neos.TestSite
     ln -s "../../Fixtures/1Dimension/SitePackage" ./TestDistribution/DistributionPackages/Neos.TestSite
 
-    # TODO: optimize this
     cd TestDistribution
     composer reinstall neos/test-site
     ./flow flow:cache:flush --force
     ./flow flow:cache:warmup
     ./flow configuration:show --path Neos.ContentRepository.contentDimensions
 
-    if ./flow site:list | grep -q 'Node name'; then
-        ./flow site:prune '*'
-    fi
-    ./flow cr:setup
     ./flow cr:setup --content-repository onedimension
-    ./flow cr:setup --content-repository twodimensions
-    ./flow cr:import --content-repository onedimension Packages/Sites/Neos.Test.OneDimension/Resources/Private/Content
-    ./flow site:create neos-test-onedimension Neos.Test.OneDimension Neos.TestNodeTypes:Document.HomePage
+    ./flow site:pruneAll --content-repository onedimension --force --verbose
+    ./flow site:importAll --content-repository onedimension --package-key Neos.Test.OneDimension --verbose
     ./flow resource:publish
 BASH
 
