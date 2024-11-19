@@ -80,7 +80,7 @@ class MoveInto extends AbstractStructuralChange
             $contentRepository = $this->contentRepositoryRegistry->get($subject->contentRepositoryId);
             $nodeType = $contentRepository->getNodeTypeManager()->getNodeType($this->subject->nodeTypeName);
             $strategy = $nodeType->getConfiguration('options.moveNodeStrategy') ?: throw new \RuntimeException('Nodetype is missing required option "moveNodeStrategy".', 1645577794);
-            $strategy = RelationDistributionStrategy::fromName($strategy) ?: throw new \RuntimeException('Nodetype has an invalid configuration for option "moveNodeStrategy".', 1645577794);
+            $strategy = RelationDistributionStrategy::tryFrom($strategy) ?? throw new \RuntimeException('Nodetype has an invalid configuration for option "moveNodeStrategy".', 1645577794);
             $contentRepository->handle(
                 MoveNodeAggregate::create(
                     $subject->workspaceName,
