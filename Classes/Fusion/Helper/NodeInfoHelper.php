@@ -404,7 +404,6 @@ class NodeInfoHelper implements ProtectedContextAwareInterface
 
     public function serializedNodeAddress(Node $node): string
     {
-        $contentRepository = $this->contentRepositoryRegistry->get($node->contentRepositoryId);
         return NodeAddress::fromNode($node)->toJson();
     }
 
