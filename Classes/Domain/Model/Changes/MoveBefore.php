@@ -68,13 +68,20 @@ class MoveBefore extends AbstractStructuralChange
                 ->equals($succeedingSiblingParent->aggregateId);
 
             $contentRepository = $this->contentRepositoryRegistry->get($subject->contentRepositoryId);
-
+            $rawMoveNodeStrategy = $this->getNodeType($this->subject)?->getConfiguration('options.moveNodeStrategy');
+            if (!is_string($rawMoveNodeStrategy)) {
+                throw new \RuntimeException(sprintf('NodeType "%s" has an invalid configuration for option "moveNodeStrategy" expected string got %s', $this->subject->nodeTypeName->value, get_debug_type($rawMoveNodeStrategy)), 1732010016);
+            }
+            $moveNodeStrategy = RelationDistributionStrategy::tryFrom($rawMoveNodeStrategy);
+            if ($moveNodeStrategy === null) {
+                throw new \RuntimeException(sprintf('NodeType "%s" has an invalid configuration for option "moveNodeStrategy" got %s', $this->subject->nodeTypeName->value, $rawMoveNodeStrategy), 1732010011);
+            }
             $contentRepository->handle(
                 MoveNodeAggregate::create(
                     $subject->workspaceName,
                     $subject->dimensionSpacePoint,
                     $subject->aggregateId,
-                    RelationDistributionStrategy::STRATEGY_GATHER_ALL,
+                    $moveNodeStrategy,
                     $hasEqualParentNode
                         ? null
                         : $succeedingSiblingParent->aggregateId,
