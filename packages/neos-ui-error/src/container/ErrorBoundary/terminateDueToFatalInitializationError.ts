@@ -1,15 +1,5 @@
-/*
- * This file is part of the Neos.Neos.Ui package.
- *
- * (c) Contributors of the Neos Project - www.neos.io
- *
- * This package is Open Source Software. For the full copyright and license
- * information, please view the LICENSE file which was distributed with this
- * source code.
- */
-import logo from '@neos-project/react-ui-components/src/Logo/logo.svg';
-
-import styles from './style.module.css';
+import logoSvg from '@neos-project/react-ui-components/src/Logo/resource/logo.svg';
+import styles from '../Containers/ErrorBoundary/style.module.css';
 
 export function terminateDueToFatalInitializationError(reason: string): void {
     if (!document.body) {
@@ -20,7 +10,7 @@ export function terminateDueToFatalInitializationError(reason: string): void {
     document.body.innerHTML = `
         <div class="${styles.container}">
             <div>
-                <img style="height: 24px; width: auto;" src='${logo}' alt="Neos" />
+                <span class="${styles.logo}">${logoSvg}</span>
                 <h1 class="${styles.title}">
                     Sorry, but the Neos UI could not be initialized.
                 </h1>

@@ -17,10 +17,10 @@ use Neos\ContentRepository\Core\Feature\NodeCreation\Command\CreateNodeAggregate
 use Neos\ContentRepository\Core\Feature\NodeCreation\Dto\NodeAggregateIdsByNodePaths;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\DisableNodeAggregate;
 use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregate;
-use Neos\ContentRepository\Core\Feature\NodeDuplication\Command\CopyNodesRecursively;
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetNodeReferences;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesToWrite;
 use Neos\ContentRepository\Core\NodeType\NodeTypeManager;
 
 /**
@@ -58,13 +58,13 @@ final readonly class NodeCreationCommands implements \IteratorAggregate
      * Add a list of commands that are executed after the initial created command was run.
      * This allows to create child-nodes and append other allowed commands.
      *
-     * @var array<int,CreateNodeAggregateWithNode|SetNodeProperties|DisableNodeAggregate|EnableNodeAggregate|SetNodeReferences|CopyNodesRecursively>
+     * @var array<int,CreateNodeAggregateWithNode|SetNodeProperties|DisableNodeAggregate|EnableNodeAggregate|SetNodeReferences>
      */
     public array $additionalCommands;
 
     private function __construct(
         CreateNodeAggregateWithNode $first,
-        CreateNodeAggregateWithNode|SetNodeProperties|DisableNodeAggregate|EnableNodeAggregate|SetNodeReferences|CopyNodesRecursively ...$additionalCommands
+        CreateNodeAggregateWithNode|SetNodeProperties|DisableNodeAggregate|EnableNodeAggregate|SetNodeReferences ...$additionalCommands
     ) {
         $this->first = $first;
         $this->additionalCommands = array_values($additionalCommands);
@@ -107,8 +107,16 @@ final readonly class NodeCreationCommands implements \IteratorAggregate
         );
     }
 
+    public function withInitialReferences(NodeReferencesToWrite $newInitialReferences): self
+    {
+        return new self(
+            $this->first->withReferences($newInitialReferences),
+            ...$this->additionalCommands
+        );
+    }
+
     public function withAdditionalCommands(
-        CreateNodeAggregateWithNode|SetNodeProperties|DisableNodeAggregate|EnableNodeAggregate|SetNodeReferences|CopyNodesRecursively ...$additionalCommands
+        CreateNodeAggregateWithNode|SetNodeProperties|DisableNodeAggregate|EnableNodeAggregate|SetNodeReferences ...$additionalCommands
     ): self {
         return new self($this->first, ...$this->additionalCommands, ...$additionalCommands);
     }

@@ -146,10 +146,8 @@ export function * watchCurrentDocument({configuration}) {
 export function * watchSearch({configuration}) {
     yield takeLatest(actionTypes.UI.PageTree.COMMENCE_SEARCH, function * searchForNode(action) {
         const siteNodeContextPath = yield select(selectors.CR.Nodes.siteNodeContextPathSelector);
-        const nodesByContextPath = yield select(selectors.CR.Nodes.nodesByContextPathSelector);
-        const hiddenContextPaths = Object.keys(nodesByContextPath).filter(i => i !== siteNodeContextPath);
         const result = {
-            hiddenContextPaths,
+            visibleContextPaths: [siteNodeContextPath],
             toggledContextPaths: [],
             intermediateContextPaths: []
         };
@@ -157,6 +155,7 @@ export function * watchSearch({configuration}) {
 
         const {contextPath, query: searchQuery, filterNodeType} = action.payload;
         const effectiveFilterNodeType = filterNodeType || configuration.nodeTree.presets.default.baseNodeType;
+        const isSearch = Boolean(filterNodeType || searchQuery);
 
         yield put(actions.UI.PageTree.setAsLoading(contextPath));
         let matchingNodes = [];
@@ -165,8 +164,8 @@ export function * watchSearch({configuration}) {
             const {q} = backend.get();
             const query = q(contextPath);
 
-            if (filterNodeType || searchQuery) {
-                matchingNodes = yield query.search(searchQuery, effectiveFilterNodeType).getForTreeWithParents();
+            if (isSearch) {
+                matchingNodes = yield query.search(searchQuery, effectiveFilterNodeType).getForTreeWithParents(effectiveFilterNodeType);
             } else {
                 const clipboardNodeContextPath = yield select(
                     state => state?.cr?.nodes?.clipboard
@@ -206,10 +205,7 @@ export function * watchSearch({configuration}) {
 
             yield put(actions.CR.Nodes.merge(nodes));
 
-            const resultContextPaths = Object.keys(nodes);
-            const oldHidden = yield select(selectors.UI.PageTree.getHidden);
-            const hiddenContextPaths = oldHidden.filter(i => !resultContextPaths.includes(i));
-
+            const visibleContextPaths = isSearch ? Object.keys(nodes) : null;
             const toggledContextPaths = [];
             const intermediateContextPaths = [];
 
@@ -232,7 +228,7 @@ export function * watchSearch({configuration}) {
             });
 
             const result = {
-                hiddenContextPaths,
+                visibleContextPaths,
                 toggledContextPaths,
                 intermediateContextPaths
             };
