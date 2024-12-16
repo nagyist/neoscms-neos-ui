@@ -1,7 +1,7 @@
 import logoSvg from '@neos-project/react-ui-components/src/Logo/resource/logo.svg';
-import styles from '../Containers/ErrorBoundary/style.module.css';
+import styles from './style.module.css';
 
-export function terminateDueToFatalInitializationError(reason) {
+export function terminateDueToFatalInitializationError(reason: string): void {
     if (!document.body) {
         throw new Error(reason);
     }
