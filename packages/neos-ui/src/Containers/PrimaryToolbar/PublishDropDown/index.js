@@ -186,7 +186,7 @@ export default class PublishDropDown extends PureComponent {
                             </AbstractButton>
                         </li>
                         {publishableNodesCount > 0 && (<li className={style.dropDown__item}>
-                            <a id="neos-PublishDropDown-ReviewChanges" href={workspaceModuleUri + '/show?moduleArguments[workspace]=' + this.props.personalWorkspaceName}>
+                            <a id="neos-PublishDropDown-ReviewChanges" href={workspaceModuleUri + '/review?moduleArguments[workspace]=' + this.props.personalWorkspaceName}>
                                 <div className={style.dropDown__iconWrapper}>
                                     <Icon icon="check-circle"/>
                                 </div>
