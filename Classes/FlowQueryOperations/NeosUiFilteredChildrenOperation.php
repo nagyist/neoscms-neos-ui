@@ -14,7 +14,7 @@ namespace Neos\Neos\Ui\FlowQueryOperations;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindChildNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\NodeType\NodeTypeConstraintParser;
-use Neos\ContentRepository\Core\Projection\ContentGraph\NodeTypeConstraints;
+use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\NodeType\NodeTypeCriteria;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Eel\FlowQuery\FlowQuery;
 use Neos\Eel\FlowQuery\Operations\AbstractOperation;
@@ -24,6 +24,7 @@ use Neos\Flow\Annotations as Flow;
  * "children" operation working on ContentRepository nodes. It iterates over all
  * context elements and returns all child nodes or only those matching
  * the filter expression specified as optional argument.
+ * @internal
  */
 class NeosUiFilteredChildrenOperation extends AbstractOperation
 {
@@ -75,12 +76,12 @@ class NeosUiFilteredChildrenOperation extends AbstractOperation
             $subgraph = $this->contentRepositoryRegistry->subgraphForNode($contextNode);
 
             foreach ($subgraph->findChildNodes(
-                $contextNode->nodeAggregateId,
-                FindChildNodesFilter::create(nodeTypeConstraints: $arguments[0] ?? null)
+                $contextNode->aggregateId,
+                FindChildNodesFilter::create(nodeTypes: $arguments[0] ?? null)
             ) as $childNode) {
-                if (!isset($outputNodeIdentifiers[$childNode->nodeAggregateId->value])) {
+                if (!isset($outputNodeIdentifiers[$childNode->aggregateId->value])) {
                     $output[] = $childNode;
-                    $outputNodeIdentifiers[$childNode->nodeAggregateId->value] = true;
+                    $outputNodeIdentifiers[$childNode->aggregateId->value] = true;
                 }
             }
         }

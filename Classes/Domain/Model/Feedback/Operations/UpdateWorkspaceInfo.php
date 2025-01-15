@@ -11,26 +11,20 @@ namespace Neos\Neos\Ui\Domain\Model\Feedback\Operations;
  * source code.
  */
 
-use Neos\ContentRepository\Core\Projection\Workspace\Workspace;
+use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepository\Core\SharedModel\Workspace\WorkspaceName;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
-use Neos\ContentRepository\Core\Factory\ContentRepositoryId;
 use Neos\Flow\Annotations as Flow;
-use Neos\Neos\Ui\ContentRepository\Service\WorkspaceService;
+use Neos\Flow\Mvc\Controller\ControllerContext;
+use Neos\Neos\Ui\ContentRepository\Service\WorkspaceService as UiWorkspaceService;
 use Neos\Neos\Ui\Domain\Model\AbstractFeedback;
 use Neos\Neos\Ui\Domain\Model\FeedbackInterface;
-use Neos\Flow\Mvc\Controller\ControllerContext;
 
+/**
+ * @internal
+ */
 class UpdateWorkspaceInfo extends AbstractFeedback
 {
-    protected ?WorkspaceName $workspaceName;
-
-    /**
-     * @Flow\Inject
-     * @var WorkspaceService
-     */
-    protected $workspaceService;
-
     /**
      * @Flow\Inject
      * @var ContentRepositoryRegistry
@@ -38,33 +32,25 @@ class UpdateWorkspaceInfo extends AbstractFeedback
     protected $contentRepositoryRegistry;
 
     /**
+     * @Flow\Inject
+     * @var UiWorkspaceService
+     */
+    protected $uiWorkspaceService;
+
+    /**
      * UpdateWorkspaceInfo constructor.
      *
-     * @param WorkspaceName $workspaceName
      */
     public function __construct(
         private readonly ContentRepositoryId $contentRepositoryId,
-        WorkspaceName $workspaceName = null
+        private readonly WorkspaceName $workspaceName
     ) {
-        $this->workspaceName = $workspaceName;
-    }
-
-    /**
-     * Set the workspace
-     *
-     * @param Workspace $workspace
-     * @return void
-     * @deprecated
-     */
-    public function setWorkspace(Workspace $workspace)
-    {
-        $this->workspaceName = $workspace->workspaceName;
     }
 
     /**
      * Getter for WorkspaceName
      */
-    public function getWorkspaceName(): ?WorkspaceName
+    public function getWorkspaceName(): WorkspaceName
     {
         return $this->workspaceName;
     }
@@ -100,8 +86,8 @@ class UpdateWorkspaceInfo extends AbstractFeedback
         if (!$feedback instanceof UpdateWorkspaceInfo) {
             return false;
         }
-
-        return $this->getWorkspaceName()?->value === $feedback->getWorkspaceName()?->value;
+        $feedbackWorkspaceName = $feedback->getWorkspaceName();
+        return $feedbackWorkspaceName !== null && $this->getWorkspaceName()->equals($feedbackWorkspaceName);
     }
 
     /**
@@ -112,20 +98,18 @@ class UpdateWorkspaceInfo extends AbstractFeedback
      */
     public function serializePayload(ControllerContext $controllerContext)
     {
-        if (!$this->workspaceName) {
+        $contentRepository = $this->contentRepositoryRegistry->get($this->contentRepositoryId);
+        $workspace = $contentRepository->findWorkspaceByName($this->workspaceName);
+        if ($workspace === null) {
             return null;
         }
-
-        $contentRepository = $this->contentRepositoryRegistry->get($this->contentRepositoryId);
-        $workspace = $contentRepository->getWorkspaceFinder()->findOneByName($this->workspaceName);
-
-        return $workspace ? [
+        $publishableNodes = $this->uiWorkspaceService->getPublishableNodeInfo($workspace->workspaceName, $contentRepository->id);
+        return [
             'name' => $this->workspaceName->value,
-            'publishableNodes' => $this->workspaceService->getPublishableNodeInfo(
-                $this->workspaceName,
-                $this->contentRepositoryId
-            ),
-            'baseWorkspace' => $workspace->baseWorkspaceName->value
-        ] : [];
+            'totalNumberOfChanges' => count($publishableNodes),
+            'publishableNodes' => $publishableNodes,
+            'baseWorkspace' => $workspace->baseWorkspaceName?->value,
+            'status' => $workspace->status->value,
+        ];
     }
 }

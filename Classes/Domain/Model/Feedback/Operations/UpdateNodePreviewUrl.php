@@ -12,14 +12,18 @@ namespace Neos\Neos\Ui\Domain\Model\Feedback\Operations;
  */
 
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Mvc\Controller\ControllerContext;
-use Neos\Neos\FrontendRouting\NodeAddressFactory;
+use Neos\Neos\Domain\NodeLabel\NodeLabelGeneratorInterface;
 use Neos\Neos\Ui\Domain\Model\AbstractFeedback;
 use Neos\Neos\Ui\Domain\Model\FeedbackInterface;
 use Neos\Neos\Ui\Fusion\Helper\NodeInfoHelper;
 
+/**
+ * @internal
+ */
 class UpdateNodePreviewUrl extends AbstractFeedback
 {
     /**
@@ -32,6 +36,12 @@ class UpdateNodePreviewUrl extends AbstractFeedback
      * @var ContentRepositoryRegistry
      */
     protected $contentRepositoryRegistry;
+
+    /**
+     * @Flow\Inject
+     * @var NodeLabelGeneratorInterface
+     */
+    protected $nodeLabelGenerator;
 
     /**
      * Set the node
@@ -71,7 +81,7 @@ class UpdateNodePreviewUrl extends AbstractFeedback
      */
     public function getDescription()
     {
-        return sprintf('The "preview URL" of node "%s" has been changed potentially.', $this->getNode()->getLabel());
+        return sprintf('The "preview URL" of node "%s" has been changed potentially.', $this->nodeLabelGenerator->getLabel($this->getNode()));
     }
 
     /**
@@ -85,26 +95,24 @@ class UpdateNodePreviewUrl extends AbstractFeedback
         if (!$feedback instanceof UpdateNodePreviewUrl) {
             return false;
         }
-        return $this->getNode()->subgraphIdentity->equals($feedback->getNode()->subgraphIdentity);
+        return $this->getNode()->equals($feedback->getNode());
     }
 
     /**
      * Serialize the payload for this feedback
      *
      * @param ControllerContext $controllerContext
-     * @return array
+     * @return array<string, string>
      */
-    public function serializePayload(ControllerContext $controllerContext)
+    public function serializePayload(ControllerContext $controllerContext): array
     {
         if ($this->node === null) {
             $newPreviewUrl = '';
             $contextPath = '';
         } else {
             $nodeInfoHelper = new NodeInfoHelper();
-            $contentRepository = $this->contentRepositoryRegistry->get($this->node->subgraphIdentity->contentRepositoryId);
-            $nodeAddressFactory = NodeAddressFactory::create($contentRepository);
-            $newPreviewUrl = $nodeInfoHelper->createRedirectToNode($this->node, $controllerContext);
-            $contextPath = $nodeAddressFactory->createFromNode($this->node)->serializeForUri();
+            $newPreviewUrl = $nodeInfoHelper->createRedirectToNode($this->node, $controllerContext->getRequest());
+            $contextPath = NodeAddress::fromNode($this->node)->toJson();
         }
         return [
             'newPreviewUrl' => $newPreviewUrl,

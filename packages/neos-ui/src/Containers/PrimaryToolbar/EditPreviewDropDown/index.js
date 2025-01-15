@@ -1,20 +1,17 @@
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
-import {$transform} from 'plow-js';
-import {neos} from '@neos-project/neos-ui-decorators';
-import Icon from '@neos-project/react-ui-components/src/Icon/';
-import DropDown from '@neos-project/react-ui-components/src/DropDown/';
 
+import {neos} from '@neos-project/neos-ui-decorators';
 import I18n from '@neos-project/neos-ui-i18n';
 
 import style from './style.module.css';
 import {actions, selectors} from '@neos-project/neos-ui-redux-store/src';
 import memoize from 'lodash.memoize';
-import Button from '@neos-project/react-ui-components/src/Button';
+import {Icon, DropDown, Button} from '@neos-project/react-ui-components';
 
-@connect($transform({
-    editPreviewMode: selectors.UI.EditPreviewMode.currentEditPreviewMode
+@connect(state => ({
+    editPreviewMode: selectors.UI.EditPreviewMode.currentEditPreviewMode(state)
 }), {
     setEditPreviewMode: actions.UI.EditPreviewMode.set
 })
@@ -89,22 +86,26 @@ export default class EditPreviewModeDropDown extends PureComponent {
                                 </li>
                             ))}
                         </ul>
-                        <div className={style.dropDown__groupHeader}>
-                            <Icon className={style.dropDown__btnIcon} icon={'eye'}/> {i18nRegistry.translate('content.components.editPreviewPanel.previewCentral', 'Preview Central')}
-                        </div>
-                        <ul>
-                            {previewModes.map(previewMode => (
-                                <li className={style.dropDown__item} key={previewMode.id}>
-                                    <Button
-                                        disabled={previewMode.id === editPreviewMode}
-                                        onClick={this.handleEditPreviewModeClick(previewMode.id)}
-                                        style={previewMode.id === editPreviewMode ? 'brand' : null}
-                                    >
-                                        <I18n id={previewMode.title}/>
-                                    </Button>
-                                </li>
-                            ))}
-                        </ul>
+                        {previewModes.length > 0 && (
+                            <>
+                                <div className={style.dropDown__groupHeader}>
+                                    <Icon className={style.dropDown__btnIcon} icon={'eye'}/> {i18nRegistry.translate('content.components.editPreviewPanel.previewCentral', 'Preview Central')}
+                                </div>
+                                <ul>
+                                    {previewModes.map(previewMode => (
+                                        <li className={style.dropDown__item} key={previewMode.id}>
+                                            <Button
+                                                disabled={previewMode.id === editPreviewMode}
+                                                onClick={this.handleEditPreviewModeClick(previewMode.id)}
+                                                style={previewMode.id === editPreviewMode ? 'brand' : null}
+                                            >
+                                                <I18n id={previewMode.title}/>
+                                            </Button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </>
+                        )}
                     </DropDown.Contents>
                 </DropDown>
             </div>

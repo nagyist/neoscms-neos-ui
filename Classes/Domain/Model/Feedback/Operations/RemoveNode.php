@@ -11,15 +11,18 @@ namespace Neos\Neos\Ui\Domain\Model\Feedback\Operations;
  * source code.
  */
 
+use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
-use Neos\Neos\FrontendRouting\NodeAddressFactory;
-use Neos\Neos\FrontendRouting\NodeAddress;
-use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\Flow\Mvc\Controller\ControllerContext;
+use Neos\Neos\Domain\NodeLabel\NodeLabelGeneratorInterface;
 use Neos\Neos\Ui\Domain\Model\AbstractFeedback;
 use Neos\Neos\Ui\Domain\Model\FeedbackInterface;
 
+/**
+ * @internal
+ */
 class RemoveNode extends AbstractFeedback
 {
     protected Node $node;
@@ -29,6 +32,12 @@ class RemoveNode extends AbstractFeedback
     private NodeAddress $nodeAddress;
 
     private NodeAddress $parentNodeAddress;
+
+    /**
+     * @Flow\Inject
+     * @var NodeLabelGeneratorInterface
+     */
+    protected $nodeLabelGenerator;
 
     /**
      * @Flow\Inject
@@ -44,11 +53,8 @@ class RemoveNode extends AbstractFeedback
 
     protected function initializeObject(): void
     {
-        $contentRepository = $this->contentRepositoryRegistry->get($this->node->subgraphIdentity->contentRepositoryId);
-        $nodeAddressFactory = NodeAddressFactory::create($contentRepository);
-
-        $this->nodeAddress = $nodeAddressFactory->createFromNode($this->node);
-        $this->parentNodeAddress = $nodeAddressFactory->createFromNode($this->parentNode);
+        $this->nodeAddress = NodeAddress::fromNode($this->node);
+        $this->parentNodeAddress = NodeAddress::fromNode($this->parentNode);
     }
 
     public function getNode(): Node
@@ -73,7 +79,7 @@ class RemoveNode extends AbstractFeedback
      */
     public function getDescription(): string
     {
-        return sprintf('Node "%s" has been removed.', $this->getNode()->getLabel());
+        return sprintf('Node "%s" has been removed.', $this->nodeLabelGenerator->getLabel($this->getNode()));
     }
 
     /**
@@ -88,9 +94,7 @@ class RemoveNode extends AbstractFeedback
             return false;
         }
 
-        return $this->getNode()->nodeAggregateId->equals(
-            $feedback->getNode()->nodeAggregateId
-        );
+        return $this->getNode()->equals($feedback->getNode());
     }
 
     /**
@@ -102,8 +106,8 @@ class RemoveNode extends AbstractFeedback
     public function serializePayload(ControllerContext $controllerContext)
     {
         return [
-            'contextPath' => $this->nodeAddress->serializeForUri(),
-            'parentContextPath' => $this->parentNodeAddress->serializeForUri()
+            'contextPath' => $this->nodeAddress->toJson(),
+            'parentContextPath' => $this->parentNodeAddress->toJson()
         ];
     }
 }

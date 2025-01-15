@@ -2,14 +2,12 @@ import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import ReactCrop from 'react-image-crop';
 
-import Icon from '@neos-project/react-ui-components/src/Icon/';
-import IconButton from '@neos-project/react-ui-components/src/IconButton/';
-import TextInput from '@neos-project/react-ui-components/src/TextInput/';
+import {Icon, IconButton, TextInput} from '@neos-project/react-ui-components';
 import {neos} from '@neos-project/neos-ui-decorators';
-import {$get} from 'plow-js';
 
 import AspectRatioDropDown from './AspectRatioDropDown/index';
 import CropConfiguration, {CustomAspectRatioOption, LockedAspectRatioStrategy} from './model.js';
+import dummyImage from '../../Editors/Image/resource/dummy-image.dataurl.svg';
 import style from './style.module.css';
 
 import './react_crop.vanilla-css';
@@ -150,11 +148,11 @@ export default class ImageCropper extends PureComponent {
         const {onComplete, sourceImage, options} = this.props;
         const {cropConfiguration} = this.state;
         const currentAspectRatioStrategy = cropConfiguration.aspectRatioStrategy;
-        const pixelSnapping = $get('crop.aspectRatio.pixelSnapping', options);
+        const pixelSnapping = options?.crop?.aspectRatio?.pixelSnapping;
 
         if (pixelSnapping && currentAspectRatioStrategy && currentAspectRatioStrategy.width && currentAspectRatioStrategy.height) {
-            const imageWidth = $get('image.originalDimensions.width', sourceImage);
-            const imageHeight = $get('image.originalDimensions.height', sourceImage);
+            const imageWidth = sourceImage?.image?.originalDimensions?.width;
+            const imageHeight = sourceImage?.image?.originalDimensions?.height;
 
             // normalize aspect ratio values by dividing by gcd
             const aspectRatioGcd = calculateGcdRecursive(currentAspectRatioStrategy.width, currentAspectRatioStrategy.height);
@@ -162,8 +160,14 @@ export default class ImageCropper extends PureComponent {
             const normalizedAspectRatioHeight = currentAspectRatioStrategy.height / aspectRatioGcd;
 
             // pixel perfect calculations
-            const naturalCropWidth = Math.floor(imageWidth * (cropArea.width / 100) / normalizedAspectRatioWidth) * normalizedAspectRatioWidth;
-            const naturalCropHeight = naturalCropWidth / normalizedAspectRatioWidth * normalizedAspectRatioHeight;
+            let naturalCropWidth = Math.floor(imageWidth * (cropArea.width / 100) / normalizedAspectRatioWidth) * normalizedAspectRatioWidth;
+            let naturalCropHeight = naturalCropWidth / normalizedAspectRatioWidth * normalizedAspectRatioHeight;
+
+            while (naturalCropHeight > imageHeight) {
+                // can't crop area larger than image itself, so keep subtracting normalized aspect ratio values until area is valid
+                naturalCropHeight -= normalizedAspectRatioHeight;
+                naturalCropWidth -= normalizedAspectRatioWidth;
+            }
 
             // modify cropArea with pixel snapping values
             cropArea.width = (naturalCropWidth / imageWidth) * 100;
@@ -178,7 +182,7 @@ export default class ImageCropper extends PureComponent {
         const aspectRatioLocked = cropConfiguration.aspectRatioStrategy instanceof LockedAspectRatioStrategy;
         const allowCustomRatios = cropConfiguration.aspectRatioOptions.some(option => option instanceof CustomAspectRatioOption);
         const {sourceImage, i18nRegistry} = this.props;
-        const src = sourceImage.previewUri || '/_Resources/Static/Packages/Neos.Neos/Images/dummy-image.svg';
+        const src = sourceImage.previewUri || dummyImage;
 
         const toolbarRef = el => {
             this.toolbarNode = el;
@@ -205,6 +209,7 @@ export default class ImageCropper extends PureComponent {
                     {!aspectRatioLocked && <AspectRatioDropDown
                         placeholder={`${i18nRegistry.translate('Neos.Neos:Main:imageCropper__aspect-ratio-placeholder')}`}
                         current={cropConfiguration.aspectRatioStrategy}
+                        allowCustomRatios={allowCustomRatios}
                         options={cropConfiguration.aspectRatioOptions}
                         onSelect={this.handleSetAspectRatio}
                         onClear={this.handleClearAspectRatio}

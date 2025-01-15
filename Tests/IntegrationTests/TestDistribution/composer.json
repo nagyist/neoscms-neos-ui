@@ -1,7 +1,6 @@
-
 {
     "name": "neos/test-distribution",
-    "description": "Neos test distribution. Change this number if you need to break CircleCI's cache: 14",
+    "description": "Neos Ui test distribution",
     "config": {
         "vendor-dir": "Packages/Libraries",
         "bin-dir": "bin",
@@ -10,12 +9,12 @@
           "cweagans/composer-patches": true
         }
     },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "require": {
       "neos/flow-development-collection": "9.0.x-dev as 9.0",
 
       "neos/neos-development-collection": "9.0.x-dev as 9.0",
-      "neos/eventstore": "dev-main",
-      "neos/eventstore-doctrineadapter": "dev-main",
 
       "neos/neos-ui": "9.0.x-dev as 9.0",
       "neos/neos-ui-compiled": "9.0.x-dev as 9.0",
@@ -26,13 +25,14 @@
 
       "cweagans/composer-patches": "^1.7.3"
     },
-    "require-dev": {
-      "neos/buildessentials": "@dev",
-      "phpunit/phpunit": "^9.0"
-    },
     "extra": {
       "patches": {
       }
+    },
+    "require-dev": {
+      "neos/buildessentials": "@dev",
+      "phpunit/phpunit": "^9.0",
+      "phpstan/phpstan": "^1.10"
     },
     "repositories": {
         "distribution": {
