@@ -30,7 +30,7 @@ interface I18nProps {
 }
 
 /**
- * @deprecated Use `import {tranlsate} from '@neos-project/neos-ui-i18n'` instead
+ * @deprecated Use `import {translate} from '@neos-project/neos-ui-i18n'` instead
  */
 export class I18n extends React.PureComponent<I18nProps> {
     public render(): JSX.Element {

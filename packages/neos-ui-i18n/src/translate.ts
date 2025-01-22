@@ -12,7 +12,7 @@ import {TranslationAddress, type Parameters} from './model';
 import {substitutePlaceholders} from './registry';
 
 /**
- * Retrieves a the translation string that is identified by the given fully
+ * Retrieves the translation string that is identified by the given fully
  * qualified translation address (a string following the pattern
  * "{Package.Key:SourceName:actual.trans.unit.id}"), then the translation will
  * be looked up in the respective package and *.xlf file.
@@ -20,7 +20,7 @@ import {substitutePlaceholders} from './registry';
  * If no translation string can be found for the given address, the given
  * fallback value will be returned.
  *
- * If a translation string was found and it contains substition placeholders
+ * If a translation string was found, and it contains substitution placeholders
  * (e.g.: "{0}", or "{somePlaceholder}"), the placeholders will be replaced
  * with the corresponding values that were passed as parameters.
  *

@@ -31,4 +31,17 @@ describe('getTranslationAddress', () => {
         expect(translationAddress.sourceName).toBe('SomeSource');
         expect(translationAddress.packageKey).toBe('Some.Package');
     });
+
+    it('try with invalid string returns null', () => {
+        // error in placeholder https://github.com/neos/neos-ui/pull/3907
+        const translationAddress = getTranslationAddress(
+            'ClientEval: node.properties.tagName',
+            'Some.Package',
+            'SomeSource'
+        );
+
+        expect(translationAddress.id).toBe('ClientEval: node.properties.tagName');
+        expect(translationAddress.sourceName).toBe('SomeSource');
+        expect(translationAddress.packageKey).toBe('Some.Package');
+    });
 });

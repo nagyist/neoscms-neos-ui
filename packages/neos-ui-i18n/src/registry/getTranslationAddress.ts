@@ -9,6 +9,9 @@
  */
 import {TranslationAddress} from '../model';
 
+/**
+ * @deprecated legacy implementation for I18nRegistry we want to use the TranslationAddress instead.
+ */
 export function getTranslationAddress(
     fullyQualifiedTransUnitId: string
 ): TranslationAddress;
@@ -22,8 +25,9 @@ export function getTranslationAddress(
     packageKey?: string,
     sourceName?: string
 ) {
-    if (id && id.indexOf(':') !== -1) {
-        return TranslationAddress.fromString(id);
+    const fullyQualifiedTranslationAddress = TranslationAddress.tryFromString(id);
+    if (fullyQualifiedTranslationAddress !== null) {
+        return fullyQualifiedTranslationAddress;
     }
 
     if (packageKey === undefined) {

@@ -22,7 +22,7 @@ Neos:
             // ...
 ```
 
-At the beginning of the UI bootstrapping process, translations are loaded from an enpoint (see: [`\Neos\Neos\Controller\Backend\BackendController->xliffAsJsonAction()`](https://neos.github.io/neos/9.0/Neos/Neos/Controller/Backend/BackendController.html#method_xliffAsJsonAction)) and are available afterwards via the `translate` function exposed by this package.
+At the beginning of the UI bootstrapping process, translations are loaded from an endpoint (see: [`\Neos\Neos\Controller\Backend\BackendController->xliffAsJsonAction()`](https://neos.github.io/neos/9.0/Neos/Neos/Controller/Backend/BackendController.html#method_xliffAsJsonAction)) and are available afterwards via the `translate` function exposed by this package.
 
 ## API
 
@@ -90,18 +90,18 @@ Copy {source} to {target}
 
 For numerically indexed placeholders, you can pass an array of strings to the `parameters` argument of `translate`. For named parameters, you can pass an object with string values and keys identifying the parameters.
 
-Translations may also have plural forms. `translate` uses the [`Intl` Web API](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl) to pick the currect plural form for the current `Locale` based on the given `quantity`.
+Translations may also have plural forms. `translate` uses the [`Intl` Web API](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl) to pick the correct plural form for the current `Locale` based on the given `quantity`.
 
-Fallbacks can also provide plural forms, but will always treated as if we're in locale `en-US`, so you can only provide two different plural forms.
+Fallbacks can also provide plural forms, but will always be treated as if we're in locale `en-US`, so you can only provide two different plural forms.
 
 #### Arguments
 
-| Name | Description |
-|-|-|
-| `fullyQualifiedTranslationAddressAsString` | The translation address for the translation to use, e.g.: `"Neos.Neos.Ui:Main:errorBoundary.title"` |
-| `fallback` | The string to return, if no translation can be found under the given address. If a tuple of two strings is passed here, these will be treated as singular and plural forms of the translation. |
-| `parameters` | Values to replace placeholders in the translation with. This can be passed as an array of strings (to replace numerically indexed placeholders) or as a `Record<string, string>` (to replace named placeholders) |
-| `quantity` | The quantity is used to determine which plural form (if any) to use for the translation |
+| Name                                       | Description                                                                                                                                                                                                      |
+|--------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `fullyQualifiedTranslationAddressAsString` | The translation address for the translation to use, e.g.: `"Neos.Neos.Ui:Main:errorBoundary.title"`                                                                                                              |
+| `fallback`                                 | The string to return, if no translation can be found under the given address. If a tuple of two strings is passed here, these will be treated as singular and plural forms of the translation.                   |
+| `parameters`                               | Values to replace placeholders in the translation with. This can be passed as an array of strings (to replace numerically indexed placeholders) or as a `Record<string, string>` (to replace named placeholders) |
+| `quantity`                                 | The quantity is used to determine which plural form (if any) to use for the translation                                                                                                                          |
 
 #### Examples
 
@@ -168,7 +168,7 @@ async function initializeI18n(): Promise<void>;
 
 This function loads the translations from the translations endpoint and makes them available globally. It must be run exactly once before any call to `translate`.
 
-The exact URL of the translations endpoint is discoverd via the DOM. The document needs to have a link tag with the id `neos-ui-uri:/neos/xliff.json`, with the following attributes:
+The exact URL of the translations endpoint is discovered via the DOM. The document needs to have a link tag with the id `neos-ui-uri:/neos/xliff.json`, with the following attributes:
 ```html
 <link
   id="neos-ui-uri:/neos/xliff.json"
@@ -194,11 +194,11 @@ This function can be used in unit tests to set up I18n.
 
 #### Arguments
 
-| Name | Description |
-|-|-|
-| `localeIdentifier` | A valid [Unicode Language Identifier](https://www.unicode.org/reports/tr35/#unicode-language-identifier), e.g.: `de-DE`, `en-US`, `ar-EG`, ... |
+| Name                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `localeIdentifier`    | A valid [Unicode Language Identifier](https://www.unicode.org/reports/tr35/#unicode-language-identifier), e.g.: `de-DE`, `en-US`, `ar-EG`, ...                                                                                                                                                                                                                                                                                                 |
 | `pluralRulesAsString` | A comma-separated list of [Language Plural Rules](http://www.unicode.org/reports/tr35/#Language_Plural_Rules) matching the locale specified by `localeIdentifier`. Here, the output of [`\Neos\Flow\I18n\Cldr\Reader\PluralsReader->getPluralForms()`](https://neos.github.io/flow/9.0/Neos/Flow/I18n/Cldr/Reader/PluralsReader.html#method_getPluralForms) is expected, e.g.: `one,other` for `de-DE`, or `zero,one,two,few,many` for `ar-EG` |
-| `translations` | The XLIFF translations in their JSON-serialized form |
+| `translations`        | The XLIFF translations in their JSON-serialized form                                                                                                                                                                                                                                                                                                                                                                                           |
 
 ##### `TranslationsDTO`
 

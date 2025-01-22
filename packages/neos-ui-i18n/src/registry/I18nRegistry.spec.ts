@@ -111,3 +111,11 @@ test(`
 
     expect(actual).toBe('Singular Translation');
 });
+
+test(`
+    Host > Containers > I18n: Returns undefined if no id is specified`, () => {
+    const registry = new I18nRegistry('');
+    const actual = registry.translate(undefined);
+
+    expect(actual).toBe(undefined);
+});

@@ -41,4 +41,23 @@ describe('TranslationAddress', () => {
                     .becauseStringDoesNotAdhereToExpectedFormat('foo bar')
             );
     });
+
+    it('can be try created from string', () => {
+        const translationAddress = TranslationAddress.tryFromString(
+            'Some.Package:SomeSource:some.transunit.id'
+        );
+
+        expect(translationAddress).not.toBeNull();
+        expect(translationAddress?.id).toBe('some.transunit.id');
+        expect(translationAddress?.sourceName).toBe('SomeSource');
+        expect(translationAddress?.packageKey).toBe('Some.Package');
+        expect(translationAddress?.fullyQualified).toBe('Some.Package:SomeSource:some.transunit.id');
+    });
+
+    it('try with invalid string returns null', () => {
+        expect(TranslationAddress.tryFromString('foo bar')).toBeNull();
+        expect(TranslationAddress.tryFromString('something:')).toBeNull();
+        // error in placeholder https://github.com/neos/neos-ui/pull/3907
+        expect(TranslationAddress.tryFromString('ClientEval: node.properties.tagName')).toBeNull();
+    });
 });
