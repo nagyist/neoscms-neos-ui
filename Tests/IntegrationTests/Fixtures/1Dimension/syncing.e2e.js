@@ -21,7 +21,6 @@ test('Syncing: Create a conflict state between two editors and choose "Discard a
     await prepareContentElementConflictBetweenAdminAndEditor(t);
     await chooseDiscardAllAsResolutionStrategy(t);
     await confirmAndPerformDiscardAll(t);
-    await finishSynchronization(t);
 
     await assertThatWeAreOnPage(t, 'Home');
     await assertThatWeCannotSeePageInTree(t, 'Sync Demo #1');
@@ -62,7 +61,6 @@ test('Syncing: Create a conflict state between two editors and choose "Drop conf
     await cancelDropConflictingChanges(t);
     await chooseDiscardAllAsResolutionStrategy(t);
     await confirmAndPerformDiscardAll(t);
-    await finishSynchronization(t);
 
     await assertThatWeAreOnPage(t, 'Home');
     await assertThatWeCannotSeePageInTree(t, 'Sync Demo #1');
