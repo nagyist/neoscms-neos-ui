@@ -24,6 +24,11 @@ const errorCache: Record<string, boolean> = {};
  */
 export class I18nRegistry extends SynchronousRegistry<unknown> {
     /**
+     * @deprecated Use `import {translate} from '@neos-project/neos-ui-i18n'` instead
+     */
+    translate(emptyAddress: undefined): undefined;
+
+    /**
      * Retrieves the translation string that is identified by the given
      * identifier. If it is a fully qualified translation address (a string
      * following the pattern "{Package.Key:SourceName:actual.trans.unit.id}"),
@@ -176,13 +181,17 @@ export class I18nRegistry extends SynchronousRegistry<unknown> {
     ): string;
 
     translate(
-        transUnitIdOrFullyQualifiedTranslationAddress: string,
+        transUnitIdOrFullyQualifiedTranslationAddress?: string,
         explicitlyProvidedFallback?: string,
         parameters?: LegacyParameters,
         explicitlyProvidedPackageKey: string = 'Neos.Neos',
         explicitlyProvidedSourceName: string = 'Main',
         quantity: number = 0
     ) {
+        if (typeof transUnitIdOrFullyQualifiedTranslationAddress !== 'string' || transUnitIdOrFullyQualifiedTranslationAddress === '') {
+            // legacy behaviour to guard against undefined
+            return explicitlyProvidedFallback;
+        }
         const fallback = explicitlyProvidedFallback || transUnitIdOrFullyQualifiedTranslationAddress;
         const translationAddress = getTranslationAddress(transUnitIdOrFullyQualifiedTranslationAddress, explicitlyProvidedPackageKey, explicitlyProvidedSourceName);
         const translation = this.getTranslation(translationAddress);
