@@ -18,7 +18,7 @@ export const globals = {
 
 export function requireGlobals(): NonNullable<(typeof globals)['current']> {
     if (globals.current === null) {
-        throw GlobalsRuntimeContraintViolation
+        throw GlobalsRuntimeConstraintViolation
             .becauseGlobalsWereRequiredButHaveNotBeenSetYet();
     }
 
@@ -31,7 +31,7 @@ export function setGlobals(value: NonNullable<(typeof globals)['current']>) {
         return;
     }
 
-    throw GlobalsRuntimeContraintViolation
+    throw GlobalsRuntimeConstraintViolation
         .becauseGlobalsWereAttemptedToBeSetMoreThanOnce();
 }
 
@@ -39,20 +39,20 @@ export function unsetGlobals() {
     globals.current = null;
 }
 
-export class GlobalsRuntimeContraintViolation extends Error {
+export class GlobalsRuntimeConstraintViolation extends Error {
     private constructor(message: string) {
         super(message);
     }
 
     public static becauseGlobalsWereRequiredButHaveNotBeenSetYet = () =>
-        new GlobalsRuntimeContraintViolation(
+        new GlobalsRuntimeConstraintViolation(
             'Globals for "@neos-project/neos-ui-i18n" are not available,'
             + ' because they have not been initialized yet. Make sure to run'
             + ' `loadI18n` or `setupI18n` (for testing).'
         );
 
     public static becauseGlobalsWereAttemptedToBeSetMoreThanOnce = () =>
-        new GlobalsRuntimeContraintViolation(
+        new GlobalsRuntimeConstraintViolation(
             'Globals for "@neos-project/neos-ui-i18n" have already been set. '
              + ' Make sure to only run one of `loadI18n` or `setupI18n` (for'
              + ' testing).  Neither function must ever be called more than'

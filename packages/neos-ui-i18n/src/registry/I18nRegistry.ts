@@ -20,11 +20,11 @@ import type {LegacyParameters} from './LegacyParameters';
 const errorCache: Record<string, boolean> = {};
 
 /**
- * @deprecated Use `import {tranlsate} from '@neos-project/neos-ui-i18n'` instead
+ * @deprecated Use `import {translate} from '@neos-project/neos-ui-i18n'` instead
  */
 export class I18nRegistry extends SynchronousRegistry<unknown> {
     /**
-     * Retrieves a the translation string that is identified by the given
+     * Retrieves the translation string that is identified by the given
      * identifier. If it is a fully qualified translation address (a string
      * following the pattern "{Package.Key:SourceName:actual.trans.unit.id}"),
      * then the translation will be looked up in the respective package and
@@ -34,13 +34,13 @@ export class I18nRegistry extends SynchronousRegistry<unknown> {
      * If no translation string can be found for the given id, the fully
      * qualified translation address will be returned.
      *
-     * @deprecated Use `import {tranlsate} from '@neos-project/neos-ui-i18n'` instead
+     * @deprecated Use `import {translate} from '@neos-project/neos-ui-i18n'` instead
      * @param {string} transUnitIdOrFullyQualifiedTranslationAddress A trans-unit id or a fully qualified translation address
      */
     translate(transUnitIdOrFullyQualifiedTranslationAddress: string): string;
 
     /**
-     * Retrieves a the translation string that is identified by the given
+     * Retrieves the translation string that is identified by the given
      * identifier. If it is a fully qualified translation address (a string
      * following the pattern "{Package.Key:SourceName:actual.trans.unit.id}"),
      * then the translation will be looked up in the respective package and
@@ -50,14 +50,14 @@ export class I18nRegistry extends SynchronousRegistry<unknown> {
      * If no translation string can be found for the given id, the given
      * fallback value will be returned.
      *
-     * @deprecated Use `import {tranlsate} from '@neos-project/neos-ui-i18n'` instead
+     * @deprecated Use `import {translate} from '@neos-project/neos-ui-i18n'` instead
      * @param {string} transUnitIdOrFullyQualifiedTranslationAddress A trans-unit id or a fully qualified translation address
      * @param {string} fallback The string that shall be displayed, when no translation string could be found.
      */
     translate(transUnitIdOrFullyQualifiedTranslationAddress: string, fallback: string): string;
 
     /**
-     * Retrieves a the translation string that is identified by the given
+     * Retrieves the translation string that is identified by the given
      * identifier. If it is a fully qualified translation address (a string
      * following the pattern "{Package.Key:SourceName:actual.trans.unit.id}"),
      * then the translation will be looked up in the respective package and
@@ -68,11 +68,11 @@ export class I18nRegistry extends SynchronousRegistry<unknown> {
      * fallback value will be returned. If no fallback value has been given,
      * the fully qualified translation address will be returned.
      *
-     * If a translation string was found and it contains substition placeholders
+     * If a translation string was found, and it contains substitution placeholders
      * (e.g.: "{0}", or "{somePlaceholder}"), the placeholders will be replaced
      * with the corresponding values that were passed as parameters.
      *
-     * @deprecated Use `import {tranlsate} from '@neos-project/neos-ui-i18n'` instead
+     * @deprecated Use `import {translate} from '@neos-project/neos-ui-i18n'` instead
      * @param {string} transUnitIdOrFullyQualifiedTranslationAddress The fully qualified translation address, that follows the format "{Package.Key:SourceName:trans.unit.id}"
      * @param {undefined|string} fallback The string that shall be displayed, when no translation string could be found.
      * @param {LegacyParameters} parameters The values to replace substitution placeholders with in the translation string
@@ -84,7 +84,7 @@ export class I18nRegistry extends SynchronousRegistry<unknown> {
     ): string;
 
     /**
-     * Retrieves a the translation string that is identified by the given
+     * Retrieves the translation string that is identified by the given
      * trans-unit id. The translation file will be looked up inside the package
      * identified by the given package key. The file itself will be the Main.xlf
      * in that package's resource translations.
@@ -93,11 +93,11 @@ export class I18nRegistry extends SynchronousRegistry<unknown> {
      * value will be returned. If no fallback value has been given, the fully
      * qualified translation address will be returned.
      *
-     * If a translation string was found and it contains substition placeholders
+     * If a translation string was found, and it contains substitution placeholders
      * (e.g.: "{0}", or "{somePlaceholder}"), the placeholders will be replaced
      * with the corresponding values that were passed as parameters.
      *
-     * @deprecated Use `import {tranlsate} from '@neos-project/neos-ui-i18n'` instead
+     * @deprecated Use `import {translate} from '@neos-project/neos-ui-i18n'` instead
      * @param {string} transUnitId The trans-unit id
      * @param {undefined|string} fallback The string that shall be displayed, when no translation string could be found.
      * @param {LegacyParameters} parameters The values to replace substitution placeholders with in the translation string
@@ -111,7 +111,7 @@ export class I18nRegistry extends SynchronousRegistry<unknown> {
     ): string;
 
     /**
-     * Retrieves a the translation string that is identified by the given
+     * Retrieves the translation string that is identified by the given
      * trans-unit id. The translation file will be looked up inside the package
      * identified by the given package key. The file itself will be the *.xlf file
      * in that package's resource translations that is identified by the given
@@ -121,11 +121,11 @@ export class I18nRegistry extends SynchronousRegistry<unknown> {
      * value will be returned. If no fallback value has been given, the fully
      * qualified translation address will be returned.
      *
-     * If a translation string was found and it contains substition placeholders
+     * If a translation string was found, and it contains substitution placeholders
      * (e.g.: "{0}", or "{somePlaceholder}"), the placeholders will be replaced
      * with the corresponding values that were passed as parameters.
      *
-     * @deprecated Use `import {tranlsate} from '@neos-project/neos-ui-i18n'` instead
+     * @deprecated Use `import {translate} from '@neos-project/neos-ui-i18n'` instead
      * @param {string} transUnitId The trans-unit id
      * @param {undefined|string} fallback The string that shall be displayed, when no translation string could be found.
      * @param {LegacyParameters} parameters The values to replace substitution placeholders with in the translation string
@@ -141,7 +141,7 @@ export class I18nRegistry extends SynchronousRegistry<unknown> {
     ): string;
 
     /**
-     * Retrieves a the translation string that is identified by the given
+     * Retrieves the translation string that is identified by the given
      * trans-unit id. The translation file will be looked up inside the package
      * identified by the given package key. The file itself will be the *.xlf file
      * in that package's resource translations that is identified by the given
@@ -155,11 +155,11 @@ export class I18nRegistry extends SynchronousRegistry<unknown> {
      * plural form, then the plural form will be used. If the quantity equals 1
      * or is smaller than 1, the singular form will be used.
      *
-     * If a translation string was found and it contains substition placeholders
+     * If a translation string was found, and it contains substitution placeholders
      * (e.g.: "{0}", or "{somePlaceholder}"), the placeholders will be replaced
      * with the corresponding values that were passed as parameters.
      *
-     * @deprecated Use `import {tranlsate} from '@neos-project/neos-ui-i18n'` instead
+     * @deprecated Use `import {translate} from '@neos-project/neos-ui-i18n'` instead
      * @param {string} transUnitId The trans-unit id
      * @param {undefined|string} fallback The string that shall be displayed, when no translation string could be found.
      * @param {LegacyParameters} parameters The values to replace substitution placeholders with in the translation string
@@ -184,10 +184,10 @@ export class I18nRegistry extends SynchronousRegistry<unknown> {
         quantity: number = 0
     ) {
         const fallback = explicitlyProvidedFallback || transUnitIdOrFullyQualifiedTranslationAddress;
-        const translationAddess = getTranslationAddress(transUnitIdOrFullyQualifiedTranslationAddress, explicitlyProvidedPackageKey, explicitlyProvidedSourceName);
-        const translation = this.getTranslation(translationAddess);
+        const translationAddress = getTranslationAddress(transUnitIdOrFullyQualifiedTranslationAddress, explicitlyProvidedPackageKey, explicitlyProvidedSourceName);
+        const translation = this.getTranslation(translationAddress);
         if (translation === null) {
-            this.logTranslationNotFound(translationAddess, fallback);
+            this.logTranslationNotFound(translationAddress, fallback);
             return fallback;
         }
 
@@ -209,6 +209,6 @@ export class I18nRegistry extends SynchronousRegistry<unknown> {
 }
 
 /**
- * @deprecated Use `import {tranlsate} from '@neos-project/neos-ui-i18n'` instead
+ * @deprecated Use `import {translate} from '@neos-project/neos-ui-i18n'` instead
  */
 export const i18nRegistry = new I18nRegistry('The i18n registry');

@@ -7,7 +7,7 @@
  * information, please view the LICENSE file which was distributed with this
  * source code.
  */
-import {GlobalsRuntimeContraintViolation, requireGlobals, setGlobals, unsetGlobals} from './globals';
+import {GlobalsRuntimeConstraintViolation, requireGlobals, setGlobals, unsetGlobals} from './globals';
 
 describe('globals', () => {
     afterEach(() => {
@@ -17,7 +17,7 @@ describe('globals', () => {
     test('requireGlobals throws when globals are not initialized yet', () => {
         expect(() => requireGlobals())
             .toThrow(
-                GlobalsRuntimeContraintViolation
+                GlobalsRuntimeConstraintViolation
                     .becauseGlobalsWereRequiredButHaveNotBeenSetYet()
             );
     });
@@ -31,7 +31,7 @@ describe('globals', () => {
         setGlobals('foo' as any);
         expect(() => setGlobals('bar' as any))
             .toThrow(
-                GlobalsRuntimeContraintViolation
+                GlobalsRuntimeConstraintViolation
                     .becauseGlobalsWereAttemptedToBeSetMoreThanOnce()
             );
     });
