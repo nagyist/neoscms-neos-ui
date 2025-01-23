@@ -19,8 +19,9 @@ import style from './style.module.css';
 
 @connect(state => ({
     isSaving: state?.ui?.remote?.isSaving,
-    isPublishing: state?.ui?.remote?.isPublishing,
-    isDiscarding: state?.ui?.remote?.isDiscarding,
+    isPublishing: state?.cr?.publishing?.mode === PublishingMode.PUBLISH,
+    // todo the discard state is unused:
+    isDiscarding: state?.cr?.publishing?.mode === PublishingMode.DISCARD,
     publishableNodes: publishableNodesSelector(state),
     publishableNodesInDocument: publishableNodesInDocumentSelector(state),
     personalWorkspaceName: personalWorkspaceNameSelector(state),
