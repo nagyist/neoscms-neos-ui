@@ -80,6 +80,7 @@ export const makeSyncPersonalWorkspace = (deps: {
                 yield put(actions.CR.Syncing.fail(result.error));
             }
         } catch (error) {
+            console.error(error); // log client site errors
             yield put(actions.CR.Syncing.fail(error as AnyError));
         } finally {
             window.removeEventListener('beforeunload', handleWindowBeforeUnload);
