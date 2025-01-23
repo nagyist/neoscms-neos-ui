@@ -7,7 +7,7 @@
  * information, please view the LICENSE file which was distributed with this
  * source code.
  */
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 // @ts-ignore
 import {connect} from 'react-redux';
 
@@ -85,7 +85,7 @@ const PublishingDialog: React.FC<PublishingDialogProps> = (props) => {
             );
 
         case PublishingPhase.ONGOING:
-            return (
+            const ongoingScreen = (
                 <ProcessIndicator
                     mode={props.publishingState.mode}
                     scope={props.publishingState.scope}
@@ -95,6 +95,8 @@ const PublishingDialog: React.FC<PublishingDialogProps> = (props) => {
                     numberOfChanges={props.numberOfChanges}
                     />
             );
+
+            return props.publishingState.process.autoConfirmed ? <DelayedDisplay component={ongoingScreen} delay={750} /> : ongoingScreen;
 
         case PublishingPhase.CONFLICTS:
             return null;
@@ -116,6 +118,21 @@ const PublishingDialog: React.FC<PublishingDialogProps> = (props) => {
             );
     }
 };
+
+const DelayedDisplay = (props: {component: React.ReactElement, delay: number}) => {
+    const [enable, setEnable] = useState(false);
+
+    useEffect(() => {
+        const id = setTimeout(() => {
+            setEnable(true);
+        }, props.delay)
+        return () => {
+            clearTimeout(id)
+        }
+    }, [props.delay])
+
+    return enable ? props.component : null;
+}
 
 export default connect((state: GlobalState): PublishingDialogProperties => {
     const {publishing: publishingState} = state.cr;

@@ -37,6 +37,7 @@ export type State = null | {
         | { phase: PublishingPhase.START }
         | {
             phase: PublishingPhase.ONGOING,
+            autoConfirmed: boolean
           }
         | { phase: PublishingPhase.CONFLICTS }
         | {
@@ -148,6 +149,7 @@ export const reducer = (state: State = defaultState, action: Action): State => {
                     phase: PublishingPhase.START,
                 } : {
                     phase: PublishingPhase.ONGOING,
+                    autoConfirmed: true
                 }
             };
         }
@@ -170,7 +172,8 @@ export const reducer = (state: State = defaultState, action: Action): State => {
             return {
                 ...state,
                 process: {
-                    phase: PublishingPhase.ONGOING
+                    phase: PublishingPhase.ONGOING,
+                    autoConfirmed: false
                 }
             };
         case actionTypes.CONFLICTS_OCCURRED:
@@ -184,7 +187,8 @@ export const reducer = (state: State = defaultState, action: Action): State => {
             return {
                 ...state,
                 process: {
-                    phase: PublishingPhase.ONGOING
+                    phase: PublishingPhase.ONGOING,
+                    autoConfirmed: false
                 }
             };
         case actionTypes.FAILED:
@@ -199,7 +203,8 @@ export const reducer = (state: State = defaultState, action: Action): State => {
             return {
                 ...state,
                 process: {
-                    phase: PublishingPhase.ONGOING
+                    phase: PublishingPhase.ONGOING,
+                    autoConfirmed: false
                 }
             };
         case actionTypes.SUCEEDED:
