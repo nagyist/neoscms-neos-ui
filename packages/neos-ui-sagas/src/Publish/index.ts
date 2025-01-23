@@ -9,7 +9,7 @@
  */
 import {put, call, select, takeEvery, take, race, all} from 'redux-saga/effects';
 
-import {AnyError} from '@neos-project/neos-ui-error';
+import {AnyError, showFlashMessage} from '@neos-project/neos-ui-error';
 import {DimensionCombination, NodeContextPath, WorkspaceName} from '@neos-project/neos-ts-interfaces';
 import {actionTypes, actions, selectors} from '@neos-project/neos-ui-redux-store';
 import {GlobalState} from '@neos-project/neos-ui-redux-store/src/System';
@@ -74,7 +74,7 @@ export function * watchPublishing({routes}: {routes: Routes}) {
     const resolveConflicts = makeResolveConflicts({syncPersonalWorkspace});
 
     yield takeEvery(actionTypes.CR.Publishing.STARTED, function * publishingWorkflow(action: ReturnType<typeof actions.CR.Publishing.start>) {
-        const confirmed = yield * waitForConfirmation();
+        const confirmed = action.payload.requireConfirmation ? yield * waitForConfirmation() : true;
         if (!confirmed) {
             return;
         }
@@ -99,7 +99,18 @@ export function * watchPublishing({routes}: {routes: Routes}) {
                 : yield call(endpoint!, ancestorId, workspaceName, dimensionSpacePoint);
 
             if ('success' in result) {
-                yield put(actions.CR.Publishing.succeed(result.success.numberOfAffectedChanges));
+                if (action.payload.requireConfirmation) {
+                    yield put(actions.CR.Publishing.succeed(result.success.numberOfAffectedChanges));
+                } else {
+                    showFlashMessage({
+                        id: 'publishing',
+                        severity: 'success',
+                        // todo translation, see Neos.Neos.Ui:PublishingDialog:publish.site.success.message
+                        message: `${result.success.numberOfAffectedChanges} change(s) in site were sucessfully published`,
+                        timeout: 1500
+                    });
+                    yield put(actions.CR.Publishing.finish());
+                }
                 yield * reloadAfterPublishing();
             } else if ('conflicts' in result) {
                 yield put(actions.CR.Publishing.conflicts());

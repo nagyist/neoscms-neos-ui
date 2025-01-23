@@ -53,22 +53,22 @@ export default class PublishDropDown extends PureComponent {
 
     handlePublishClick = () => {
         const {start} = this.props;
-        start(PublishingMode.PUBLISH, PublishingScope.DOCUMENT);
+        start(PublishingMode.PUBLISH, PublishingScope.DOCUMENT, false);
     }
 
     handlePublishAllClick = () => {
         const {start} = this.props;
-        start(PublishingMode.PUBLISH, PublishingScope.SITE);
+        start(PublishingMode.PUBLISH, PublishingScope.SITE, true);
     }
 
     handleDiscardClick = () => {
         const {start} = this.props;
-        start(PublishingMode.DISCARD, PublishingScope.DOCUMENT);
+        start(PublishingMode.DISCARD, PublishingScope.DOCUMENT, true);
     }
 
     handleDiscardAllClick = () => {
         const {start} = this.props;
-        start(PublishingMode.DISCARD, PublishingScope.SITE);
+        start(PublishingMode.DISCARD, PublishingScope.SITE, true);
     }
 
     render() {
