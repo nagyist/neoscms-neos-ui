@@ -20,8 +20,6 @@ import style from './style.module.css';
 @connect(state => ({
     isSaving: state?.ui?.remote?.isSaving,
     isPublishing: state?.cr?.publishing?.mode === PublishingMode.PUBLISH,
-    // todo the discard state is unused:
-    isDiscarding: state?.cr?.publishing?.mode === PublishingMode.DISCARD,
     publishableNodes: publishableNodesSelector(state),
     publishableNodesInDocument: publishableNodesInDocumentSelector(state),
     personalWorkspaceName: personalWorkspaceNameSelector(state),
@@ -39,7 +37,6 @@ export default class PublishDropDown extends PureComponent {
     static propTypes = {
         isSaving: PropTypes.bool,
         isPublishing: PropTypes.bool,
-        isDiscarding: PropTypes.bool,
         isWorkspaceReadOnly: PropTypes.bool,
         publishableNodes: PropTypes.array,
         publishableNodesInDocument: PropTypes.array,
@@ -78,7 +75,6 @@ export default class PublishDropDown extends PureComponent {
             publishableNodesInDocument,
             isSaving,
             isPublishing,
-            isDiscarding,
             isWorkspaceReadOnly,
             baseWorkspace,
             changeBaseWorkspaceAction,
@@ -89,16 +85,15 @@ export default class PublishDropDown extends PureComponent {
         const workspaceModuleUri = neos?.routes?.core?.modules?.workspace;
         const allowedWorkspaces = neos?.configuration?.allowedTargetWorkspaces;
         const baseWorkspaceTitle = allowedWorkspaces?.[baseWorkspace]?.title;
-        const canPublishLocally = !isSaving && !isPublishing && !isDiscarding && publishableNodesInDocument && (publishableNodesInDocument.length > 0);
-        const canPublishGlobally = !isSaving && !isPublishing && !isDiscarding && publishableNodes && (publishableNodes.length > 0);
+        const canPublishLocally = !isSaving && !isPublishing && publishableNodesInDocument && (publishableNodesInDocument.length > 0);
+        const canPublishGlobally = !isSaving && !isPublishing && publishableNodes && (publishableNodes.length > 0);
         const changingWorkspaceAllowed = !canPublishGlobally;
         const mainButton = this.getTranslatedMainButton(baseWorkspaceTitle);
         const dropDownBtnClassName = mergeClassNames({
             [style.dropDown__btn]: true,
             [style['dropDown__item--canPublish']]: canPublishGlobally,
             [style['dropDown__item--isPublishing']]: isPublishing,
-            [style['dropDown__item--isSaving']]: isSaving,
-            [style['dropDown__item--isDiscarding']]: isDiscarding
+            [style['dropDown__item--isSaving']]: isSaving
         });
         const publishableNodesInDocumentCount = publishableNodesInDocument ? publishableNodesInDocument.length : 0;
         const publishableNodesCount = publishableNodes ? publishableNodes.length : 0;
@@ -116,7 +111,7 @@ export default class PublishDropDown extends PureComponent {
                 </AbstractButton>
 
                 <DropDown className={style.dropDown}>
-                    {isPublishing || isSaving || isDiscarding ? (
+                    {isPublishing || isSaving ? (
                         <DropDown.Header
                             iconIsOpen={'spinner'}
                             iconIsClosed={'spinner'}
@@ -212,8 +207,7 @@ export default class PublishDropDown extends PureComponent {
         const {
             publishableNodesInDocument,
             isSaving,
-            isPublishing,
-            isDiscarding
+            isPublishing
         } = this.props;
         const canPublishLocally = publishableNodesInDocument && (publishableNodesInDocument.length > 0);
 
@@ -223,10 +217,6 @@ export default class PublishDropDown extends PureComponent {
 
         if (isPublishing) {
             return translate('Neos.Neos:Main:publishTo', 'Publish to {0}', [baseWorkspaceTitle]) + ' ...';
-        }
-
-        if (isDiscarding) {
-            return 'Discarding...';
         }
 
         if (canPublishLocally) {
