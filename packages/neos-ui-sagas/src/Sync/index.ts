@@ -122,7 +122,7 @@ export const makeResolveConflicts = (deps: {
                 if (strategy === ResolutionStrategy.DISCARD_ALL) {
                     if (yield * waitForResolutionConfirmation()) {
                         yield * discardAll();
-                        return true;
+                        return false; // don't continue publishing as this is a deletes all
                     }
 
                     continue;
@@ -166,7 +166,8 @@ const makeDiscardAll = () => {
             PublishingMode.DISCARD,
             PublishingScope.ALL
         ));
-        yield put(actions.CR.Publishing.confirm());
+        yield put(actions.CR.Publishing.confirm()); // todo auto-confirm this case
+        yield put(actions.CR.Syncing.finish()); // stop syncing as discarding takes now over
         const {cancelled}: {
             cancelled: null | ReturnType<typeof actions.CR.Publishing.cancel>;
             failed: null | ReturnType<typeof actions.CR.Publishing.fail>;
@@ -178,9 +179,9 @@ const makeDiscardAll = () => {
         });
 
         if (cancelled) {
-            yield put(actions.CR.Syncing.cancelResolution());
+            yield put(actions.CR.Publishing.cancel());
         }
-        yield put(actions.CR.Syncing.finish());
+        yield put(actions.CR.Publishing.finish());
     }
 
     return discardAll;
