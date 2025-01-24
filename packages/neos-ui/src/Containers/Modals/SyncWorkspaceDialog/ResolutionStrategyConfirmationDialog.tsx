@@ -175,8 +175,8 @@ const DiscardAllConfirmationDialog: React.FC<{
                     />
                 <I18n
                     id="Neos.Neos.Ui:SyncWorkspaceDialog:resolutionStrategy.DISCARD_ALL.confirmation.message"
-                    fallback={`You are about to discard all changes in workspace "${props.workspaceName}". This includes all changes on other sites. Do you wish to proceed? Be careful: This cannot be undone!`}
-                    params={props}
+                    fallback={`You are about to discard all ${props.totalNumberOfChangesInWorkspace} change(s) in workspace "${props.workspaceName}". This includes all changes on other sites. Do you wish to proceed? Be careful: This cannot be undone!`}
+                    params={{numberOfChanges: props.totalNumberOfChangesInWorkspace, workspaceName: props.workspaceName}}
                     />
             </div>
         </Dialog>

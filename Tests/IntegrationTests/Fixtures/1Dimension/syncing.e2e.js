@@ -20,7 +20,7 @@ fixture`Syncing`
 test('Syncing: Create a conflict state between two editors and choose "Discard all" as a resolution strategy during rebase', async t => {
     await prepareContentElementConflictBetweenAdminAndEditor(t);
     await chooseDiscardAllAsResolutionStrategy(t);
-    await confirmAndPerformDiscardAll(t);
+    await performResolutionStrategy(t);
 
     await assertThatWeAreOnPage(t, 'Home');
     await assertThatWeCannotSeePageInTree(t, 'Sync Demo #1');
@@ -31,7 +31,7 @@ test('Syncing: Create a conflict state between two editors and choose "Discard a
 test('Syncing: Create a conflict state between two editors and choose "Drop conflicting changes" as a resolution strategy during rebase', async t => {
     await prepareContentElementConflictBetweenAdminAndEditor(t);
     await chooseDropConflictingChangesAsResolutionStrategy(t);
-    await confirmDropConflictingChanges(t);
+    await performResolutionStrategy(t);
     await finishSynchronization(t);
 
     await assertThatWeAreOnPage(t, 'Home');
@@ -46,7 +46,7 @@ test('Syncing: Create a conflict state between two editors, start and cancel res
     await startSynchronization(t);
     await assertThatConflictResolutionHasStarted(t);
     await chooseDropConflictingChangesAsResolutionStrategy(t);
-    await confirmDropConflictingChanges(t);
+    await performResolutionStrategy(t);
     await finishSynchronization(t);
 
     await assertThatWeAreOnPage(t, 'Home');
@@ -58,9 +58,9 @@ test('Syncing: Create a conflict state between two editors, start and cancel res
 test('Syncing: Create a conflict state between two editors and choose "Drop conflicting changes" as a resolution strategy, then cancel and choose "Discard all" as a resolution strategy during rebase', async t => {
     await prepareContentElementConflictBetweenAdminAndEditor(t);
     await chooseDropConflictingChangesAsResolutionStrategy(t);
-    await cancelDropConflictingChanges(t);
+    await cancelResolutionStrategy(t);
     await chooseDiscardAllAsResolutionStrategy(t);
-    await confirmAndPerformDiscardAll(t);
+    await performResolutionStrategy(t);
 
     await assertThatWeAreOnPage(t, 'Home');
     await assertThatWeCannotSeePageInTree(t, 'Sync Demo #1');
@@ -73,7 +73,7 @@ test('Publish + Syncing: Create a conflict state between two editors, then try t
     await startPublishAll(t);
     await assertThatConflictResolutionHasStarted(t);
     await chooseDropConflictingChangesAsResolutionStrategy(t);
-    await confirmDropConflictingChanges(t);
+    await performResolutionStrategy(t);
     await finishPublish(t);
 
     await assertThatWeAreOnPage(t, 'Home');
@@ -85,7 +85,7 @@ test('Publish + Syncing: Create a conflict state between two editors, then try t
     await startPublishDocument(t);
     await assertThatConflictResolutionHasStarted(t);
     await chooseDropConflictingChangesAsResolutionStrategy(t);
-    await confirmDropConflictingChanges(t);
+    await performResolutionStrategy(t);
     await finishPublish(t);
 
     await assertThatWeAreOnPage(t, 'Home');
@@ -330,29 +330,17 @@ async function chooseDiscardAllAsResolutionStrategy(t) {
     await t.click(Selector('#neos-SelectResolutionStrategy-Accept'));
 }
 
-async function confirmAndPerformDiscardAll(t) {
-    await t.click(Selector('#neos-DiscardDialog-Confirm'));
-    await t.expect(Selector('#neos-DiscardDialog-Acknowledge').exists)
-        .ok('Acknowledge button for "Discard all" is not available.', {
-            timeout: 30000
-        });
-    // For reasons unknown, we have to press the acknowledge button really
-    // hard for testcafe to realize our intent...
-    await t.wait(500);
-    await t.click(Selector('#neos-DiscardDialog-Acknowledge'));
-}
-
 async function chooseDropConflictingChangesAsResolutionStrategy(t) {
     await t.click(Selector('#neos-SelectResolutionStrategy-SelectBox'));
     await t.click(Selector('[role="button"]').withText('Drop conflicting changes'));
     await t.click(Selector('#neos-SelectResolutionStrategy-Accept'));
 }
 
-async function confirmDropConflictingChanges(t) {
+async function performResolutionStrategy(t) {
     await t.click(Selector('#neos-ResolutionStrategyConfirmation-Confirm'));
 }
 
-async function cancelDropConflictingChanges(t) {
+async function cancelResolutionStrategy(t) {
     await t.click(Selector('#neos-ResolutionStrategyConfirmation-Cancel'));
 }
 
