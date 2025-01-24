@@ -6,7 +6,7 @@ import mergeClassNames from 'classnames';
 
 import {Badge, Icon, DropDown} from '@neos-project/react-ui-components';
 
-import I18n from '@neos-project/neos-ui-i18n';
+import I18n, {translate} from '@neos-project/neos-ui-i18n';
 import {actions, selectors} from '@neos-project/neos-ui-redux-store';
 import {PublishingMode, PublishingScope} from '@neos-project/neos-ui-redux-store/src/CR/Publishing';
 import {neos} from '@neos-project/neos-ui-decorators';
@@ -218,11 +218,11 @@ export default class PublishDropDown extends PureComponent {
         const canPublishLocally = publishableNodesInDocument && (publishableNodesInDocument.length > 0);
 
         if (isSaving) {
-            return <I18n id="Neos.Neos:Main:saving" fallback="saving"/>;
+            return translate('Neos.Neos:Main:saving', 'saving');
         }
 
         if (isPublishing) {
-            return <I18n id="Neos.Neos:Main:publishTo" fallback="Publish to" params={{0: baseWorkspaceTitle}}/>;
+            return translate('Neos.Neos:Main:publishTo', 'Publish to {0}', [baseWorkspaceTitle]) + ' ...';
         }
 
         if (isDiscarding) {
@@ -230,14 +230,9 @@ export default class PublishDropDown extends PureComponent {
         }
 
         if (canPublishLocally) {
-            return <I18n id="Neos.Neos:Main:publishTo" fallback="Publish to" params={{0: baseWorkspaceTitle}}/>;
+            return translate('Neos.Neos:Main:publishTo', 'Publish to {0}', [baseWorkspaceTitle]);
         }
 
-        return (
-            <Fragment>
-                <I18n id="Neos.Neos:Main:published" fallback="Published"/>
-                {(baseWorkspaceTitle ? ' - ' + baseWorkspaceTitle : '')}
-            </Fragment>
-        );
+        return translate('Neos.Neos:Main:published', 'Published') + (baseWorkspaceTitle ? ' - ' + baseWorkspaceTitle : '');
     }
 }
