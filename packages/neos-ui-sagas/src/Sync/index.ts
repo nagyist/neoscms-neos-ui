@@ -120,8 +120,12 @@ export const makeResolveConflicts = (deps: {
                 }
 
                 if (strategy === ResolutionStrategy.DISCARD_ALL) {
-                    yield * discardAll();
-                    return true;
+                    if (yield * waitForResolutionConfirmation()) {
+                        yield * discardAll();
+                        return true;
+                    }
+
+                    continue;
                 }
             }
 
@@ -162,7 +166,7 @@ const makeDiscardAll = () => {
             PublishingMode.DISCARD,
             PublishingScope.ALL
         ));
-
+        yield put(actions.CR.Publishing.confirm());
         const {cancelled}: {
             cancelled: null | ReturnType<typeof actions.CR.Publishing.cancel>;
             failed: null | ReturnType<typeof actions.CR.Publishing.fail>;
