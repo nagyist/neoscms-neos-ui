@@ -21,6 +21,7 @@ test('Syncing: Create a conflict state between two editors and choose "Discard a
     await prepareContentElementConflictBetweenAdminAndEditor(t);
     await chooseDiscardAllAsResolutionStrategy(t);
     await performResolutionStrategy(t);
+    await finishDiscard(t);
 
     await assertThatWeAreOnPage(t, 'Home');
     await assertThatWeCannotSeePageInTree(t, 'Sync Demo #1');
@@ -55,12 +56,18 @@ test('Syncing: Create a conflict state between two editors, start and cancel res
     await assertThatWeCannotSeePageInTree(t, 'Sync Demo #3');
 });
 
-test('Syncing: Create a conflict state between two editors and choose "Drop conflicting changes" as a resolution strategy, then cancel and choose "Discard all" as a resolution strategy during rebase', async t => {
+test('Syncing: Create a conflict state between two editors and switch between "Drop conflicting changes" and "Discard all" as a resolution strategy during rebase', async t => {
     await prepareContentElementConflictBetweenAdminAndEditor(t);
+
+    // switch back and forth
+    await chooseDiscardAllAsResolutionStrategy(t);
+    await cancelResolutionStrategy(t);
     await chooseDropConflictingChangesAsResolutionStrategy(t);
     await cancelResolutionStrategy(t);
     await chooseDiscardAllAsResolutionStrategy(t);
+
     await performResolutionStrategy(t);
+    await finishDiscard(t);
 
     await assertThatWeAreOnPage(t, 'Home');
     await assertThatWeCannotSeePageInTree(t, 'Sync Demo #1');
@@ -68,7 +75,7 @@ test('Syncing: Create a conflict state between two editors and choose "Drop conf
     await assertThatWeCannotSeePageInTree(t, 'Sync Demo #3');
 });
 
-test('Publish + Syncing: Create a conflict state between two editors, then try to publish and choose "Drop conflicting changes" as a resolution strategy during automatic rebase', async t => {
+test('Publish + Syncing: Create a conflict state between two editors, then try to publish the site and choose "Drop conflicting changes" as a resolution strategy during automatic rebase', async t => {
     await prepareDocumentConflictBetweenAdminAndEditor(t);
     await startPublishAll(t);
     await assertThatConflictResolutionHasStarted(t);
@@ -80,13 +87,25 @@ test('Publish + Syncing: Create a conflict state between two editors, then try t
     await assertThatWeCannotSeePageInTree(t, 'This page will be deleted during sync');
 });
 
-test('Publish + Syncing: Create a conflict state between two editors, then try to publish the document only and choose "Drop conflicting changes" as a resolution strategy during automatic rebase', async t => {
+test('Publish + Syncing: Create a conflict state between two editors, then try to publish the document and choose "Drop conflicting changes" as a resolution strategy during automatic rebase', async t => {
     await prepareDocumentConflictBetweenAdminAndEditor(t);
     await startPublishDocument(t);
     await assertThatConflictResolutionHasStarted(t);
     await chooseDropConflictingChangesAsResolutionStrategy(t);
     await performResolutionStrategy(t);
     await finishPublish(t);
+
+    await assertThatWeAreOnPage(t, 'Home');
+    await assertThatWeCannotSeePageInTree(t, 'This page will be deleted during sync');
+});
+
+test('Publish + Syncing: Create a conflict state between two editors, then try to publish the site and choose "Discard all" as a resolution strategy', async t => {
+    await prepareDocumentConflictBetweenAdminAndEditor(t);
+    await startPublishAll(t);
+    await assertThatConflictResolutionHasStarted(t);
+    await chooseDiscardAllAsResolutionStrategy(t);
+    await performResolutionStrategy(t);
+    await finishDiscard(t);
 
     await assertThatWeAreOnPage(t, 'Home');
     await assertThatWeCannotSeePageInTree(t, 'This page will be deleted during sync');
@@ -312,6 +331,11 @@ async function startPublishDocument(t) {
 async function finishPublish(t) {
     await assertThatPublishingHasFinishedWithoutError(t);
     await t.click(Selector('#neos-PublishDialog-Acknowledge'));
+    await t.wait(2000);
+}
+
+async function finishDiscard(t) {
+    await t.click(Selector('#neos-DiscardDialog-Acknowledge'));
     await t.wait(2000);
 }
 
