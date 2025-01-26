@@ -21,6 +21,7 @@ import backend, {Routes} from '@neos-project/neos-ui-backend-connector';
 import {makeReloadNodes} from '../CR/NodeOperations/reloadNodes';
 import {updateWorkspaceInfo} from '../CR/Workspaces';
 import {makeResolveConflicts, makeSyncPersonalWorkspace} from '../Sync';
+import {translate} from '@neos-project/neos-ui-i18n';
 
 const handleWindowBeforeUnload = (event: BeforeUnloadEvent) => {
     event.preventDefault();
@@ -36,6 +37,21 @@ type PublishingResponse =
     }
     | { conflicts: Conflict[] }
     | { error: AnyError };
+
+const PUBLISH_SUCCESS_TRANSLATIONS = {
+    [PublishingScope.ALL]: {
+        id: 'Neos.Neos.Ui:PublishingDialog:publish.all.success.message',
+        fallback: 'All {numberOfChanges} change(s) in workspace "{scopeTitle}" were successfully published to workspace "{targetWorkspaceName}".'
+    },
+    [PublishingScope.SITE]: {
+        id: 'Neos.Neos.Ui:PublishingDialog:publish.site.success.message',
+        fallback: '{numberOfChanges} change(s) in site "{scopeTitle}" were successfully published to workspace "{targetWorkspaceName}".'
+    },
+    [PublishingScope.DOCUMENT]: {
+        id: 'Neos.Neos.Ui:PublishingDialog:publish.document.success.message',
+        fallback: '{numberOfChanges} change(s) in document "{scopeTitle}" were sucessfully published to workspace "{targetWorkspaceName}".'
+    }
+}
 
 export function * watchPublishing({routes}: {routes: Routes}) {
     const {endpoints} = backend.get();
@@ -102,12 +118,27 @@ export function * watchPublishing({routes}: {routes: Routes}) {
                 if (action.payload.requireConfirmation) {
                     yield put(actions.CR.Publishing.succeed(result.success.numberOfAffectedChanges));
                 } else {
+                    // fixme, this translation logic is duplicated from the PublishingDialog component
+                    let scopeTitle = 'N/A';
+                    if (scope === PublishingScope.ALL) {
+                        scopeTitle = yield select(selectors.CR.Workspaces.personalWorkspaceNameSelector);
+                    } else if (scope === PublishingScope.SITE) {
+                        scopeTitle = (yield select(selectors.CR.Nodes.siteNodeSelector))?.label ?? scopeTitle;
+                    } else if (scope === PublishingScope.DOCUMENT) {
+                        scopeTitle = (yield select(selectors.CR.Nodes.documentNodeSelector))?.label ?? scopeTitle;
+                    }
+
+                    const parameters = {
+                        numberOfChanges: result.success.numberOfAffectedChanges,
+                        scopeTitle,
+                        targetWorkspaceName: yield select(selectors.CR.Workspaces.baseWorkspaceSelector)
+                    };
+
                     showFlashMessage({
                         id: 'publishing',
                         severity: 'success',
-                        // todo translation, see Neos.Neos.Ui:PublishingDialog:publish.site.success.message
-                        message: `${result.success.numberOfAffectedChanges} change(s) in site were sucessfully published`,
-                        timeout: 1500
+                        message: translate(PUBLISH_SUCCESS_TRANSLATIONS[scope].id, PUBLISH_SUCCESS_TRANSLATIONS[scope].fallback, parameters),
+                        timeout: 2000
                     });
                     yield put(actions.CR.Publishing.finish());
                 }

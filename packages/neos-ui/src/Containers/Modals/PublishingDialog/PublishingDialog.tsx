@@ -27,9 +27,10 @@ import {ResultDialog} from './ResultDialog';
 const {
     publishableNodesSelector,
     publishableNodesInDocumentSelector,
-    personalWorkspaceNameSelector
-} = (selectors as any).CR.Workspaces;
-const {siteNodeSelector, documentNodeSelector} = (selectors as any).CR.Nodes;
+    personalWorkspaceNameSelector,
+    baseWorkspaceSelector
+} = selectors.CR.Workspaces;
+const {siteNodeSelector, documentNodeSelector} = selectors.CR.Nodes;
 
 type PublishingDialogProperties =
     | { publishingState: null }
@@ -142,7 +143,8 @@ export default connect((state: GlobalState): PublishingDialogProperties => {
     }
 
     const {scope} = publishingState;
-    const {name: sourceWorkspaceName, baseWorkspace} = state.cr.workspaces.personalWorkspace;
+    const sourceWorkspaceName = personalWorkspaceNameSelector(state);
+    const baseWorkspace = baseWorkspaceSelector(state);
     const targetWorkspaceName = publishingState.mode === PublishingMode.PUBLISH
         ? baseWorkspace
         : null;
@@ -160,11 +162,11 @@ export default connect((state: GlobalState): PublishingDialogProperties => {
 
     let scopeTitle = 'N/A';
     if (scope === PublishingScope.ALL) {
-        scopeTitle = personalWorkspaceNameSelector(state);
+        scopeTitle = sourceWorkspaceName;
     } else if (scope === PublishingScope.SITE) {
-        scopeTitle = siteNodeSelector(state).label;
+        scopeTitle = siteNodeSelector(state)?.label ?? scopeTitle;
     } else if (scope === PublishingScope.DOCUMENT) {
-        scopeTitle = documentNodeSelector(state).label;
+        scopeTitle = documentNodeSelector(state)?.label ?? scopeTitle;
     }
 
     return {
