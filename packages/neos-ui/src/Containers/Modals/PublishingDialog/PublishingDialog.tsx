@@ -84,7 +84,7 @@ const PublishingDialog: React.FC<PublishingDialogProps> = (props) => {
                     />
             );
 
-        case PublishingPhase.ONGOING:
+        case PublishingPhase.ONGOING: {
             const ongoingScreen = (
                 <ProcessIndicator
                     mode={props.publishingState.mode}
@@ -97,6 +97,7 @@ const PublishingDialog: React.FC<PublishingDialogProps> = (props) => {
             );
 
             return props.publishingState.process.autoConfirmed ? <DelayedDisplay component={ongoingScreen} delay={750} /> : ongoingScreen;
+        }
 
         case PublishingPhase.CONFLICTS:
             return null;

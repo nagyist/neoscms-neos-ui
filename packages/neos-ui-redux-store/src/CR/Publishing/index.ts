@@ -146,7 +146,7 @@ export const reducer = (state: State = defaultState, action: Action): State => {
                 mode: action.payload.mode,
                 scope: action.payload.scope,
                 process: action.payload.requireConfirmation ? {
-                    phase: PublishingPhase.START,
+                    phase: PublishingPhase.START
                 } : {
                     phase: PublishingPhase.ONGOING,
                     autoConfirmed: true
