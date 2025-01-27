@@ -89,7 +89,7 @@ test('Publish + Syncing: Create a conflict state between two editors, then try t
 
 test('Publish + Syncing: Create a conflict state between two editors, then try to publish the document and choose "Drop conflicting changes" as a resolution strategy during automatic rebase', async t => {
     await prepareDocumentConflictBetweenAdminAndEditor(t);
-    await startPublishDocument(t);
+    await publishDocument(t);
     await assertThatConflictResolutionHasStarted(t);
     await chooseDropConflictingChangesAsResolutionStrategy(t);
     await performResolutionStrategy(t);
@@ -323,9 +323,8 @@ async function startPublishAll(t) {
     await t.click(Selector('#neos-PublishDialog-Confirm'));
 }
 
-async function startPublishDocument(t) {
+async function publishDocument(t) {
     await t.click(Selector('#neos-PublishDropDown-Publish'))
-    await t.click(Selector('#neos-PublishDialog-Confirm'));
 }
 
 async function finishPublish(t) {

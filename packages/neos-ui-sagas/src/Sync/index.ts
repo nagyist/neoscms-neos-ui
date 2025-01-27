@@ -164,9 +164,10 @@ const makeDiscardAll = () => {
     function * discardAll() {
         yield put(actions.CR.Publishing.start(
             PublishingMode.DISCARD,
-            PublishingScope.ALL
+            PublishingScope.ALL,
+            true
         ));
-        yield put(actions.CR.Publishing.confirm()); // todo auto-confirm this case
+        yield put(actions.CR.Publishing.confirm()); // we auto-confirm this case but do want to display a full result dialog
         yield put(actions.CR.Syncing.finish()); // stop syncing as discarding takes now over
         const {cancelled}: {
             cancelled: null | ReturnType<typeof actions.CR.Publishing.cancel>;

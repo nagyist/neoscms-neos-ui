@@ -35,7 +35,10 @@ export type State = null | {
     scope: PublishingScope;
     process:
         | { phase: PublishingPhase.START }
-        | { phase: PublishingPhase.ONGOING }
+        | {
+            phase: PublishingPhase.ONGOING,
+            autoConfirmed: boolean
+          }
         | { phase: PublishingPhase.CONFLICTS }
         | {
               phase: PublishingPhase.ERROR;
@@ -65,8 +68,8 @@ export enum actionTypes {
 /**
  * Publishes or discards all changes in the given scope
  */
-const start = (mode: PublishingMode, scope: PublishingScope) =>
-    createAction(actionTypes.STARTED, {mode, scope});
+const start = (mode: PublishingMode, scope: PublishingScope, requireConfirmation: boolean) =>
+    createAction(actionTypes.STARTED, {mode, scope, requireConfirmation});
 
 /**
  * Cancel the ongoing publish/discard workflow
@@ -142,8 +145,11 @@ export const reducer = (state: State = defaultState, action: Action): State => {
             return {
                 mode: action.payload.mode,
                 scope: action.payload.scope,
-                process: {
+                process: action.payload.requireConfirmation ? {
                     phase: PublishingPhase.START
+                } : {
+                    phase: PublishingPhase.ONGOING,
+                    autoConfirmed: true
                 }
             };
         }
@@ -166,7 +172,8 @@ export const reducer = (state: State = defaultState, action: Action): State => {
             return {
                 ...state,
                 process: {
-                    phase: PublishingPhase.ONGOING
+                    phase: PublishingPhase.ONGOING,
+                    autoConfirmed: false
                 }
             };
         case actionTypes.CONFLICTS_OCCURRED:
@@ -180,7 +187,8 @@ export const reducer = (state: State = defaultState, action: Action): State => {
             return {
                 ...state,
                 process: {
-                    phase: PublishingPhase.ONGOING
+                    phase: PublishingPhase.ONGOING,
+                    autoConfirmed: false
                 }
             };
         case actionTypes.FAILED:
@@ -195,7 +203,8 @@ export const reducer = (state: State = defaultState, action: Action): State => {
             return {
                 ...state,
                 process: {
-                    phase: PublishingPhase.ONGOING
+                    phase: PublishingPhase.ONGOING,
+                    autoConfirmed: false
                 }
             };
         case actionTypes.SUCEEDED:
