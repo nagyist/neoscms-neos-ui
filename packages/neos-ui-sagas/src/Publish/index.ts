@@ -108,17 +108,30 @@ export function * watchPublishing({routes}: {routes: Routes}) {
 
                 if (conflictsWereResolved) {
                     yield put(actions.CR.Publishing.resolveConflicts());
-
                     //
-                    // It may happen that after conflicts are resolved, the
-                    // document we're trying to publish no longer exists.
+                    // There are special cases after conflicts is resolved:
+                    //
+                    // * the document we're trying to publish no longer exists
+                    // * the site we're trying to publish no longer contains changes
+                    // * the document we're trying to publish no longer contains changes
                     //
                     // We need to finish the publishing operation in this
-                    // case, otherwise it'll lead to an error.
+                    // case, otherwise it'll lead to an error as there is nothing to do.
                     //
-                    const publishingShouldContinue = scope === PublishingScope.DOCUMENT
-                        ? Boolean(yield select(selectors.CR.Nodes.byContextPathSelector(ancestorId)))
-                        : true;
+                    // todo possibly add another phase to actively continue publishing and also make it more transparently if publishing cant continue
+                    // see: https://github.com/neos/neos-ui/issues/3908#issuecomment-2608232225
+                    let publishingShouldContinue = true;
+                    if (scope === PublishingScope.DOCUMENT) {
+                        if (!(yield select(selectors.CR.Nodes.byContextPathSelector(ancestorId)))) {
+                            publishingShouldContinue = false;
+                        } else if ((yield select(selectors.CR.Workspaces.publishableNodesInDocumentSelector)).length === 0) {
+                            publishingShouldContinue = false;
+                        }
+                    } else if (scope === PublishingScope.SITE) {
+                        if ((yield select(selectors.CR.Workspaces.publishableNodesSelector)).length === 0) {
+                            publishingShouldContinue = false;
+                        }
+                    }
 
                     if (publishingShouldContinue) {
                         yield * attemptToPublishOrDiscard();
@@ -141,6 +154,7 @@ export function * watchPublishing({routes}: {routes: Routes}) {
                 window.addEventListener('beforeunload', handleWindowBeforeUnload);
                 yield * attemptToPublishOrDiscard();
             } catch (error) {
+                console.error(error); // log client site errors
                 yield put(actions.CR.Publishing.fail(error as AnyError));
             } finally {
                 window.removeEventListener('beforeunload', handleWindowBeforeUnload);

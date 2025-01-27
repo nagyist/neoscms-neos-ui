@@ -150,8 +150,16 @@ export const reducer = (state: State = defaultState, action: Action): State => {
 
         return null;
     }
-
     switch (action.type) {
+        // recursive publishing start, replacing the outer process
+        case actionTypes.STARTED:
+            return {
+                mode: action.payload.mode,
+                scope: action.payload.scope,
+                process: {
+                    phase: PublishingPhase.START
+                }
+            };
         case actionTypes.CANCELLED:
             return null;
         case actionTypes.CONFIRMED:

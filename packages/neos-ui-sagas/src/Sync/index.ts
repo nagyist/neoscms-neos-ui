@@ -80,6 +80,7 @@ export const makeSyncPersonalWorkspace = (deps: {
                 yield put(actions.CR.Syncing.fail(result.error));
             }
         } catch (error) {
+            console.error(error); // log client site errors
             yield put(actions.CR.Syncing.fail(error as AnyError));
         } finally {
             window.removeEventListener('beforeunload', handleWindowBeforeUnload);
@@ -92,7 +93,7 @@ export const makeSyncPersonalWorkspace = (deps: {
 export const makeResolveConflicts = (deps: {
     syncPersonalWorkspace: ReturnType<typeof makeSyncPersonalWorkspace>
 }) => {
-    const discardAll = makeDiscardAll(deps);
+    const discardAll = makeDiscardAll();
 
     function * resolveConflicts(conflicts: Conflict[]): any {
         while (true) {
@@ -119,8 +120,12 @@ export const makeResolveConflicts = (deps: {
                 }
 
                 if (strategy === ResolutionStrategy.DISCARD_ALL) {
-                    yield * discardAll();
-                    return true;
+                    if (yield * waitForResolutionConfirmation()) {
+                        yield * discardAll();
+                        return false; // don't continue publishing as this is a deletes all
+                    }
+
+                    continue;
                 }
             }
 
@@ -155,16 +160,15 @@ function * waitForRetry() {
     return Boolean(retried);
 }
 
-const makeDiscardAll = (deps: {
-    syncPersonalWorkspace: ReturnType<typeof makeSyncPersonalWorkspace>;
-}) => {
+const makeDiscardAll = () => {
     function * discardAll() {
         yield put(actions.CR.Publishing.start(
             PublishingMode.DISCARD,
             PublishingScope.ALL
         ));
-
-        const {cancelled, failed}: {
+        yield put(actions.CR.Publishing.confirm()); // todo auto-confirm this case
+        yield put(actions.CR.Syncing.finish()); // stop syncing as discarding takes now over
+        const {cancelled}: {
             cancelled: null | ReturnType<typeof actions.CR.Publishing.cancel>;
             failed: null | ReturnType<typeof actions.CR.Publishing.fail>;
             finished: null | ReturnType<typeof actions.CR.Publishing.finish>;
@@ -175,13 +179,9 @@ const makeDiscardAll = (deps: {
         });
 
         if (cancelled) {
-            yield put(actions.CR.Syncing.cancelResolution());
-        } else if (failed) {
-            yield put(actions.CR.Syncing.finish());
-        } else {
-            yield put(actions.CR.Syncing.confirmResolution());
-            yield * deps.syncPersonalWorkspace(false);
+            yield put(actions.CR.Publishing.cancel());
         }
+        yield put(actions.CR.Publishing.finish());
     }
 
     return discardAll;
