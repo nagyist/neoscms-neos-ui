@@ -13,10 +13,6 @@ namespace Neos\Neos\Ui\FlowQueryOperations;
 
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindDescendantNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
-use Neos\ContentRepository\Core\Projection\ContentGraph\SearchTerm;
-use Neos\ContentRepository\Core\NodeType\NodeTypeConstraintParser;
-use Neos\ContentRepository\Core\Projection\ContentGraph\NodeTypeConstraints;
-use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Eel\FlowQuery\FlowQuery;
 use Neos\Eel\FlowQuery\Operations\AbstractOperation;
@@ -26,6 +22,7 @@ use Neos\Flow\Annotations as Flow;
  * Custom search operation using the Content Graph fulltext search
  *
  * Original implementation: \Neos\Neos\Ui\FlowQueryOperations\SearchOperation
+ * @internal
  */
 class SearchOperation extends AbstractOperation
 {
@@ -80,10 +77,10 @@ class SearchOperation extends AbstractOperation
             $filter = $filter->with(searchTerm: $arguments[0]);
         }
         if (isset($arguments[1]) && $arguments[1] !== '') {
-            $filter = $filter->with(nodeTypeConstraints: $arguments[1]);
+            $filter = $filter->with(nodeTypes: $arguments[1]);
         }
         $nodes = $subgraph->findDescendantNodes(
-            $contextNode->nodeAggregateId,
+            $contextNode->aggregateId,
             $filter
         );
         $flowQuery->setContext(iterator_to_array($nodes));

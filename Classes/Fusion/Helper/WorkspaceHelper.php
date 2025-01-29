@@ -11,17 +11,18 @@ namespace Neos\Neos\Ui\Fusion\Helper;
  * source code.
  */
 
-use Neos\ContentRepository\Core\Factory\ContentRepositoryId;
+use Neos\ContentRepository\Core\SharedModel\ContentRepository\ContentRepositoryId;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Eel\ProtectedContextAwareInterface;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Security\Context;
-use Neos\Neos\Domain\Service\UserService as DomainUserService;
-use Neos\Neos\Domain\Service\WorkspaceNameBuilder;
-use Neos\Neos\Ui\ContentRepository\Service\WorkspaceService;
+use Neos\Neos\Domain\Service\UserService;
+use Neos\Neos\Domain\Service\WorkspaceService;
+use Neos\Neos\Security\Authorization\ContentRepositoryAuthorizationService;
+use Neos\Neos\Ui\ContentRepository\Service\WorkspaceService as UiWorkspaceService;
 
 /**
- * The Workspace helper for EEL contexts
+ * @internal implementation detail of the Neos Ui to build its initialState {@see \Neos\Neos\Ui\Infrastructure\Configuration\InitialStateProvider}
  */
 class WorkspaceHelper implements ProtectedContextAwareInterface
 {
@@ -33,53 +34,58 @@ class WorkspaceHelper implements ProtectedContextAwareInterface
 
     /**
      * @Flow\Inject
+     * @var Context
+     */
+    protected $securityContext;
+
+    /**
+     * @Flow\Inject
+     * @var UiWorkspaceService
+     */
+    protected $uiWorkspaceService;
+
+    /**
+     * @Flow\Inject
+     * @var UserService
+     */
+    protected $userService;
+
+    /**
+     * @Flow\Inject
      * @var WorkspaceService
      */
     protected $workspaceService;
 
     /**
      * @Flow\Inject
-     * @var DomainUserService
+     * @var ContentRepositoryAuthorizationService
      */
-    protected $domainUserService;
-
-    /**
-     * @Flow\Inject
-     * @var Context
-     */
-    protected $securityContext;
-
-    public function getAllowedTargetWorkspaces(ContentRepositoryId $contentRepositoryId)
-    {
-        $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        return $this->workspaceService->getAllowedTargetWorkspaces($contentRepository);
-    }
+    protected $contentRepositoryAuthorizationService;
 
     /**
      * @return array<string,mixed>
      */
     public function getPersonalWorkspace(ContentRepositoryId $contentRepositoryId): array
     {
+        $currentUser = $this->userService->getCurrentUser();
+        if ($currentUser === null) {
+            return [];
+        }
         $contentRepository = $this->contentRepositoryRegistry->get($contentRepositoryId);
-        $currentAccount = $this->securityContext->getAccount();
-        $personalWorkspaceName = WorkspaceNameBuilder::fromAccountIdentifier($currentAccount->getAccountIdentifier());
-        $personalWorkspace = $contentRepository->getWorkspaceFinder()->findOneByName($personalWorkspaceName);
-
-        return !is_null($personalWorkspace)
-            ? [
-                'name' => $personalWorkspace->workspaceName,
-                'publishableNodes' => $this->workspaceService->getPublishableNodeInfo($personalWorkspaceName, $contentRepositoryId),
-                'baseWorkspace' => $personalWorkspace->baseWorkspaceName,
-                // TODO: FIX readonly flag!
-                //'readOnly' => !$this->domainUserService->currentUserCanPublishToWorkspace($baseWorkspace)
-                'readOnly' => false
-            ]
-            : [];
+        $personalWorkspace = $this->workspaceService->getPersonalWorkspaceForUser($contentRepositoryId, $currentUser->getId());
+        $personalWorkspacePermissions = $this->contentRepositoryAuthorizationService->getWorkspacePermissions($contentRepositoryId, $personalWorkspace->workspaceName, $this->securityContext->getRoles(), $currentUser->getId());
+        $publishableNodes = $this->uiWorkspaceService->getPublishableNodeInfo($personalWorkspace->workspaceName, $contentRepository->id);
+        return [
+            'name' => $personalWorkspace->workspaceName->value,
+            'totalNumberOfChanges' => count($publishableNodes),
+            'publishableNodes' => $publishableNodes,
+            'baseWorkspace' => $personalWorkspace->baseWorkspaceName?->value,
+            'readOnly' => !($personalWorkspace->baseWorkspaceName !== null && $personalWorkspacePermissions->write),
+            'status' => $personalWorkspace->status->value,
+        ];
     }
 
     /**
-     * All methods are considered safe
-     *
      * @param string $methodName
      * @return bool
      */

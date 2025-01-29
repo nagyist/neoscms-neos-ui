@@ -2,6 +2,7 @@ import produce from 'immer';
 import {action as createAction, ActionType} from 'typesafe-actions';
 
 import {actionTypes as system, InitAction, GlobalState} from '../../System';
+import {actionTypes as nodes, Action as NodesAction} from '../../CR/Nodes';
 import {NodeContextPath, SelectionModeTypes} from '@neos-project/neos-ts-interfaces';
 
 import * as selectors from './selectors';
@@ -10,7 +11,7 @@ import {calculateNewFocusedNodes} from '../../CR/Nodes/helpers';
 export interface State extends Readonly<{
     focused: NodeContextPath[];
     toggled: NodeContextPath[];
-    hidden: NodeContextPath[];
+    visible: null | NodeContextPath[];
     intermediate: NodeContextPath[];
     loading: NodeContextPath[];
     errors: NodeContextPath[];
@@ -21,7 +22,7 @@ export interface State extends Readonly<{
 export const defaultState: State = {
     focused: [],
     toggled: [],
-    hidden: [],
+    visible: null,
     intermediate: [],
     loading: [],
     errors: [],
@@ -40,7 +41,8 @@ export enum actionTypes {
     SET_AS_LOADED = '@neos/neos-ui/UI/PageTree/SET_AS_LOADED',
     REQUEST_CHILDREN = '@neos/neos-ui/UI/PageTree/REQUEST_CHILDREN',
     COMMENCE_SEARCH = '@neos/neos-ui/UI/PageTree/COMMENCE_SEARCH',
-    SET_SEARCH_RESULT = '@neos/neos-ui/UI/PageTree/SET_SEARCH_RESULT'
+    SET_SEARCH_RESULT = '@neos/neos-ui/UI/PageTree/SET_SEARCH_RESULT',
+    COLLAPSE_ALL = '@neos/neos-ui/UI/PageTree/COLLAPSE_ALL'
 }
 
 const focus = (contextPath: NodeContextPath, _: undefined, selectionMode: SelectionModeTypes = SelectionModeTypes.SINGLE_SELECT) => createAction(actionTypes.FOCUS, {contextPath, selectionMode});
@@ -49,13 +51,18 @@ const invalidate = (contextPath: NodeContextPath) => createAction(actionTypes.IN
 const requestChildren = (contextPath: NodeContextPath, {unCollapse = true, activate = false} = {}) => createAction(actionTypes.REQUEST_CHILDREN, {contextPath, opts: {unCollapse, activate}});
 const setAsLoading = (contextPath: NodeContextPath) => createAction(actionTypes.SET_AS_LOADING, {contextPath});
 const setAsLoaded = (contextPath: NodeContextPath) => createAction(actionTypes.SET_AS_LOADED, {contextPath});
+const collapseAll = (
+    nodeContextPaths: NodeContextPath[],
+    collapsedByDefaultNodeContextPaths: NodeContextPath[]
+) => createAction(actionTypes.COLLAPSE_ALL, {nodeContextPaths, collapsedByDefaultNodeContextPaths});
+
 interface CommenceSearchOptions extends Readonly<{
     query: string;
     filterNodeType: string;
 }> {}
 const commenceSearch = (contextPath: NodeContextPath, {query, filterNodeType}: CommenceSearchOptions) => createAction(actionTypes.COMMENCE_SEARCH, {contextPath, query, filterNodeType});
 interface SearchResult extends Readonly<{
-    hiddenContextPaths: NodeContextPath[];
+    visibleContextPaths: null | NodeContextPath[];
     toggledContextPaths: NodeContextPath[];
     intermediateContextPaths: NodeContextPath[];
 }> {}
@@ -72,7 +79,8 @@ export const actions = {
     setAsLoaded,
     requestChildren,
     commenceSearch,
-    setSearchResult
+    setSearchResult,
+    collapseAll
 };
 
 export type Action = ActionType<typeof actions>;
@@ -80,11 +88,44 @@ export type Action = ActionType<typeof actions>;
 //
 // Export the reducer
 //
-export const reducer = (state: State = defaultState, action: InitAction | Action, globalState: GlobalState) => produce(state, draft => {
+export const reducer = (state: State = defaultState, action: InitAction | NodesAction | Action, globalState: GlobalState) => produce(state, draft => {
     switch (action.type) {
         case system.INIT: {
             const contextPath = action.payload.cr.nodes.documentNode || action.payload.cr.nodes.siteNode;
             draft.focused = contextPath ? [contextPath] : [];
+            break;
+        }
+        case nodes.ADD:
+        case nodes.MERGE: {
+            if (state.visible !== null) {
+                const visible = new Set([
+                    ...state.visible,
+                    ...Object.keys(action.payload.nodeMap)
+                ]);
+
+                draft.visible = [...visible];
+            }
+            break;
+        }
+        case nodes.SET_STATE: {
+            if (state.visible !== null) {
+                const visible = new Set([
+                    ...state.visible,
+                    ...Object.keys(action.payload.nodes)
+                ]);
+
+                draft.visible = [...visible];
+            }
+            break;
+        }
+        case nodes.UPDATE_PATH: {
+            if (state.visible !== null) {
+                const visible = new Set(state.visible);
+                visible.delete(action.payload.oldContextPath);
+                visible.add(action.payload.newContextPath);
+
+                draft.visible = [...visible];
+            }
             break;
         }
         case actionTypes.FOCUS: {
@@ -123,7 +164,7 @@ export const reducer = (state: State = defaultState, action: InitAction | Action
             break;
         }
         case actionTypes.SET_SEARCH_RESULT: {
-            draft.hidden = action.payload.hiddenContextPaths;
+            draft.visible = action.payload.visibleContextPaths;
             draft.toggled = action.payload.toggledContextPaths;
             draft.intermediate = action.payload.intermediateContextPaths;
             break;
@@ -132,6 +173,22 @@ export const reducer = (state: State = defaultState, action: InitAction | Action
             // Store search arguments, to be used during tree reload
             draft.query = action.payload.query;
             draft.filterNodeType = action.payload.filterNodeType;
+            break;
+        }
+        case actionTypes.COLLAPSE_ALL: {
+            const {nodeContextPaths, collapsedByDefaultNodeContextPaths} = action.payload;
+
+            nodeContextPaths.forEach(path => {
+                if (!draft.toggled.includes(path)) {
+                    draft.toggled.push(path);
+                }
+            });
+
+            collapsedByDefaultNodeContextPaths.forEach(path => {
+                if (draft.toggled.includes(path)) {
+                    draft.toggled = draft.toggled.filter(i => i !== path);
+                }
+            });
             break;
         }
     }

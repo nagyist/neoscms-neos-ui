@@ -17,6 +17,11 @@ use Neos\ContentRepository\Core\Feature\NodeMove\Dto\RelationDistributionStrateg
 use Neos\Neos\Ui\Domain\Model\Feedback\Operations\RemoveNode;
 use Neos\Neos\Ui\Domain\Model\Feedback\Operations\UpdateNodeInfo;
 
+/**
+ * @internal These objects internally reflect possible operations made by the Neos.Ui.
+ *           They are sorely an implementation detail. You should not use them!
+ *           Please look into the php command API of the Neos CR instead.
+ */
 class MoveBefore extends AbstractStructuralChange
 {
     /**
@@ -24,17 +29,13 @@ class MoveBefore extends AbstractStructuralChange
      */
     public function canApply(): bool
     {
-        if (is_null($this->subject)) {
-            return false;
-        }
         $siblingNode = $this->getSiblingNode();
         if (is_null($siblingNode)) {
             return false;
         }
         $parent = $this->findParentNode($siblingNode);
-        $nodeType = $this->subject->nodeType;
 
-        return $parent && $this->isNodeTypeAllowedAsChildNode($parent, $nodeType);
+        return $parent && $this->isNodeTypeAllowedAsChildNode($parent, $this->subject->nodeTypeName);
     }
 
     public function getMode(): string
@@ -50,9 +51,9 @@ class MoveBefore extends AbstractStructuralChange
         $succeedingSibling = $this->getSiblingNode();
         // "subject" is the to-be-moved node
         $subject = $this->subject;
-        $parentNode = $subject ? $this->findParentNode($subject) : null;
+        $parentNode = $this->findParentNode($subject);
         $succeedingSiblingParent = $succeedingSibling ? $this->findParentNode($succeedingSibling) : null;
-        if ($this->canApply() && !is_null($subject) && !is_null($succeedingSibling)
+        if ($this->canApply() && !is_null($succeedingSibling)
             && !is_null($parentNode) && !is_null($succeedingSiblingParent)
         ) {
             $precedingSibling = null;
@@ -63,24 +64,31 @@ class MoveBefore extends AbstractStructuralChange
                 // do nothing; $precedingSibling is null.
             }
 
-            $hasEqualParentNode = $parentNode->nodeAggregateId
-                ->equals($succeedingSiblingParent->nodeAggregateId);
+            $hasEqualParentNode = $parentNode->aggregateId
+                ->equals($succeedingSiblingParent->aggregateId);
 
-            $contentRepository = $this->contentRepositoryRegistry->get($subject->subgraphIdentity->contentRepositoryId);
-
+            $contentRepository = $this->contentRepositoryRegistry->get($subject->contentRepositoryId);
+            $rawMoveNodeStrategy = $this->getNodeType($this->subject)?->getConfiguration('options.moveNodeStrategy');
+            if (!is_string($rawMoveNodeStrategy)) {
+                throw new \RuntimeException(sprintf('NodeType "%s" has an invalid configuration for option "moveNodeStrategy" expected string got %s', $this->subject->nodeTypeName->value, get_debug_type($rawMoveNodeStrategy)), 1732010016);
+            }
+            $moveNodeStrategy = RelationDistributionStrategy::tryFrom($rawMoveNodeStrategy);
+            if ($moveNodeStrategy === null) {
+                throw new \RuntimeException(sprintf('NodeType "%s" has an invalid configuration for option "moveNodeStrategy" got %s', $this->subject->nodeTypeName->value, $rawMoveNodeStrategy), 1732010011);
+            }
             $contentRepository->handle(
                 MoveNodeAggregate::create(
-                    $subject->subgraphIdentity->contentStreamId,
-                    $subject->subgraphIdentity->dimensionSpacePoint,
-                    $subject->nodeAggregateId,
-                    RelationDistributionStrategy::STRATEGY_GATHER_ALL,
+                    $subject->workspaceName,
+                    $subject->dimensionSpacePoint,
+                    $subject->aggregateId,
+                    $moveNodeStrategy,
                     $hasEqualParentNode
                         ? null
-                        : $succeedingSiblingParent->nodeAggregateId,
-                    $precedingSibling?->nodeAggregateId,
-                    $succeedingSibling->nodeAggregateId,
+                        : $succeedingSiblingParent->aggregateId,
+                    $precedingSibling?->aggregateId,
+                    $succeedingSibling->aggregateId,
                 )
-            )->block();
+            );
 
             $updateParentNodeInfo = new UpdateNodeInfo();
             $updateParentNodeInfo->setNode($succeedingSiblingParent);
