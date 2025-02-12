@@ -13,7 +13,7 @@ if [ -z "$GIT_BRANCH" ]; then echo "\$GIT_BRANCH not set"; exit 1; fi
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR/../../
 
-path_to_yarn=$(which yarn)
+path_to_yarn=$(which yarn) || true
 if [ -z "$path_to_yarn" ] ; then
     echo "installing yarn:"
     npm install -g yarn
