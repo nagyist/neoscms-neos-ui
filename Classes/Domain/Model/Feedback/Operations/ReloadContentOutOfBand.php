@@ -11,24 +11,27 @@ namespace Neos\Neos\Ui\Domain\Model\Feedback\Operations;
  * source code.
  */
 
-use Neos\Neos\Domain\Service\RenderingModeService;
-use Neos\Neos\FrontendRouting\NodeAddressFactory;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Mvc\Controller\ControllerContext;
 use Neos\Fusion\Core\Cache\ContentCache;
 use Neos\Fusion\Exception as FusionException;
+use Neos\Neos\Domain\Service\RenderingModeService;
 use Neos\Neos\Fusion\Helper\CachingHelper;
 use Neos\Neos\Ui\Domain\Model\AbstractFeedback;
 use Neos\Neos\Ui\Domain\Model\FeedbackInterface;
 use Neos\Neos\Ui\Domain\Model\RenderedNodeDomAddress;
-use Neos\Neos\View\FusionView;
+use Neos\Neos\Ui\View\OutOfBandRenderingViewFactory;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * @internal
+ */
 class ReloadContentOutOfBand extends AbstractFeedback
 {
-    protected ?Node $node;
+    protected Node $node;
 
     protected ?RenderedNodeDomAddress $nodeDomAddress;
 
@@ -53,12 +56,15 @@ class ReloadContentOutOfBand extends AbstractFeedback
     #[Flow\Inject]
     protected RenderingModeService $renderingModeService;
 
+    #[Flow\Inject]
+    protected OutOfBandRenderingViewFactory $outOfBandRenderingViewFactory;
+
     public function setNode(Node $node): void
     {
         $this->node = $node;
     }
 
-    public function getNode(): ?Node
+    public function getNode(): Node
     {
         return $this->node;
     }
@@ -80,7 +86,7 @@ class ReloadContentOutOfBand extends AbstractFeedback
 
     public function getDescription(): string
     {
-        return sprintf('Rendering of node "%s" required.', $this->node?->nodeAggregateId->value);
+        return sprintf('Rendering of node "%s" required.', $this->node->aggregateId->value);
     }
 
     /**
@@ -92,16 +98,8 @@ class ReloadContentOutOfBand extends AbstractFeedback
             return false;
         }
 
-        $feedbackNode = $feedback->getNode();
-        return (
-            $this->node instanceof Node &&
-            $feedbackNode instanceof Node &&
-            $this->node->subgraphIdentity->equals($feedbackNode->subgraphIdentity) &&
-            $this->node->nodeAggregateId->equals(
-                $feedbackNode->nodeAggregateId
-            ) &&
-            $this->getNodeDomAddress() == $feedback->getNodeDomAddress()
-        );
+        return $this->getNode()->equals($feedback->getNode())
+            && $this->getNodeDomAddress() == $feedback->getNodeDomAddress();
     }
 
     /**
@@ -111,11 +109,9 @@ class ReloadContentOutOfBand extends AbstractFeedback
      */
     public function serializePayload(ControllerContext $controllerContext): array
     {
-        if (!is_null($this->node) && !is_null($this->nodeDomAddress)) {
-            $contentRepository = $this->contentRepositoryRegistry->get($this->node->subgraphIdentity->contentRepositoryId);
-            $nodeAddressFactory = NodeAddressFactory::create($contentRepository);
+        if (!is_null($this->nodeDomAddress)) {
             return [
-                'contextPath' => $nodeAddressFactory->createFromNode($this->node)->serializeForUri(),
+                'contextPath' => NodeAddress::fromNode($this->node)->toJson(),
                 'nodeDomAddress' => $this->nodeDomAddress,
                 'renderedContent' => $this->renderContent($controllerContext)
             ];
@@ -126,26 +122,32 @@ class ReloadContentOutOfBand extends AbstractFeedback
     /**
      * Render the node
      */
-    protected function renderContent(ControllerContext $controllerContext): string|ResponseInterface
+    protected function renderContent(ControllerContext $controllerContext): string
     {
-        if (!is_null($this->node)) {
-            $cacheTags = $this->cachingHelper->nodeTag($this->getNode());
-            foreach ($cacheTags as $tag) {
-                $this->contentCache->flushByTag($tag);
+        $cacheTags = $this->cachingHelper->nodeTag($this->node);
+        foreach ($cacheTags as $tag) {
+            $this->contentCache->flushByTag($tag);
+        }
+
+        if ($this->nodeDomAddress) {
+            $renderingMode = $this->renderingModeService->findByCurrentUser();
+
+            $view = $this->outOfBandRenderingViewFactory->resolveView();
+            if (method_exists($view, 'setControllerContext')) {
+                // deprecated
+                $view->setControllerContext($controllerContext);
             }
+            $view->setOption('renderingModeName', $renderingMode->name);
 
-            if ($this->nodeDomAddress) {
-                $renderingMode = $this->renderingModeService->findByCurrentUser();
+            $view->assign('value', $this->node);
+            $view->setRenderingEntryPoint($this->nodeDomAddress->getFusionPathForContentRendering());
 
-                $fusionView = new FusionView();
-                $fusionView->setControllerContext($controllerContext);
-                $fusionView->setOption('renderingModeName', $renderingMode->name);
-
-                $fusionView->assign('value', $this->node);
-                $fusionView->setFusionPath($this->nodeDomAddress->getFusionPathForContentRendering());
-
-                return $fusionView->render();
+            $content = $view->render();
+            if ($content instanceof ResponseInterface) {
+                // todo should not happen, as we never render a full Neos.Neos:Page here?
+                return $content->getBody()->getContents();
             }
+            return $content->getContents();
         }
 
         return '';
@@ -154,7 +156,7 @@ class ReloadContentOutOfBand extends AbstractFeedback
     /**
      * @return array<string,mixed>
      */
-    public function serialize(ControllerContext $controllerContext)
+    public function serialize(ControllerContext $controllerContext): array
     {
         try {
             return parent::serialize($controllerContext);

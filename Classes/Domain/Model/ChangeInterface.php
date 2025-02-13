@@ -17,6 +17,7 @@ use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 
 /**
  * An interface to describe a change
+ * @internal
  */
 interface ChangeInterface
 {
@@ -28,7 +29,7 @@ interface ChangeInterface
     /**
      * Get the subject
      */
-    public function getSubject(): ?Node;
+    public function getSubject(): Node;
 
     /**
      * Checks whether this change can be applied to the subject

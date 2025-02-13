@@ -11,20 +11,20 @@ namespace Neos\Neos\Ui\Domain\Model\Feedback\Operations;
  * source code.
  */
 
+use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
-use Neos\Neos\FrontendRouting\NodeAddressFactory;
-use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\Flow\Mvc\Controller\ControllerContext;
 use Neos\Neos\Domain\Service\NodeTypeNameFactory;
 use Neos\Neos\Ui\Domain\Model\AbstractFeedback;
 use Neos\Neos\Ui\Domain\Model\FeedbackInterface;
-use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
 
+/**
+ * @internal
+ */
 class NodeCreated extends AbstractFeedback
 {
-    use NodeTypeWithFallbackProvider;
-
     #[Flow\Inject]
     protected ContentRepositoryRegistry $contentRepositoryRegistry;
 
@@ -62,7 +62,7 @@ class NodeCreated extends AbstractFeedback
      */
     public function getDescription(): string
     {
-        return sprintf('Document Node "%s" created.', $this->getNode()->nodeAggregateId->value);
+        return sprintf('Document Node "%s" created.', $this->getNode()->aggregateId->value);
     }
 
     /**
@@ -77,10 +77,7 @@ class NodeCreated extends AbstractFeedback
             return false;
         }
 
-        return (
-            $this->getNode()->subgraphIdentity->equals($feedback->getNode()->subgraphIdentity) &&
-            $this->getNode()->nodeAggregateId->equals($feedback->getNode()->nodeAggregateId)
-        );
+        return $this->getNode()->equals($feedback->getNode());
     }
 
     /**
@@ -92,12 +89,13 @@ class NodeCreated extends AbstractFeedback
     public function serializePayload(ControllerContext $controllerContext)
     {
         $node = $this->getNode();
-        $contentRepository = $this->contentRepositoryRegistry->get($node->subgraphIdentity->contentRepositoryId);
-        $nodeAddressFactory = NodeAddressFactory::create($contentRepository);
+        $contentRepository = $this->contentRepositoryRegistry->get($node->contentRepositoryId);
+        $nodeType = $contentRepository->getNodeTypeManager()->getNodeType($node->nodeTypeName);
+
         return [
-            'contextPath' => $nodeAddressFactory->createFromNode($node)->serializeForUri(),
-            'identifier' => $node->nodeAggregateId->value,
-            'isDocument' => $this->getNodeType($node)->isOfType(NodeTypeNameFactory::NAME_DOCUMENT)
+            'contextPath' => NodeAddress::fromNode($node)->toJson(),
+            'identifier' => $node->aggregateId->value,
+            'isDocument' => $nodeType?->isOfType(NodeTypeNameFactory::NAME_DOCUMENT)
         ];
     }
 }

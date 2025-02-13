@@ -1,5 +1,4 @@
 <?php
-namespace Neos\Neos\Ui\Domain\Model\Feedback\Operations;
 
 /*
  * This file is part of the Neos.Neos.Ui package.
@@ -11,21 +10,28 @@ namespace Neos\Neos\Ui\Domain\Model\Feedback\Operations;
  * source code.
  */
 
+declare(strict_types=1);
+
+namespace Neos\Neos\Ui\Domain\Model\Feedback\Operations;
+
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
-use Neos\Neos\Domain\Service\RenderingModeService;
-use Neos\Neos\FrontendRouting\NodeAddressFactory;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
 use Neos\Flow\Mvc\Controller\ControllerContext;
 use Neos\Fusion\Core\Cache\ContentCache;
 use Neos\Fusion\Exception as FusionException;
+use Neos\Neos\Domain\Service\RenderingModeService;
 use Neos\Neos\Fusion\Helper\CachingHelper;
 use Neos\Neos\Ui\Domain\Model\AbstractFeedback;
 use Neos\Neos\Ui\Domain\Model\FeedbackInterface;
 use Neos\Neos\Ui\Domain\Model\RenderedNodeDomAddress;
-use Neos\Neos\View\FusionView;
+use Neos\Neos\Ui\View\OutOfBandRenderingViewFactory;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * @internal
+ */
 class RenderContentOutOfBand extends AbstractFeedback
 {
     protected ?Node $node = null;
@@ -62,6 +68,9 @@ class RenderContentOutOfBand extends AbstractFeedback
 
     #[Flow\Inject]
     protected RenderingModeService $renderingModeService;
+
+    #[Flow\Inject]
+    protected OutOfBandRenderingViewFactory $outOfBandRenderingViewFactory;
 
     public function setNode(Node $node): void
     {
@@ -116,7 +125,7 @@ class RenderContentOutOfBand extends AbstractFeedback
 
     public function getDescription(): string
     {
-        return sprintf('Rendering of node "%s" required.', $this->node?->nodeAggregateId->value);
+        return sprintf('Rendering of node "%s" required.', $this->node?->aggregateId->value);
     }
 
     /**
@@ -135,11 +144,8 @@ class RenderContentOutOfBand extends AbstractFeedback
             return false;
         }
 
-        return (
-            $this->node->subgraphIdentity->equals($feedbackNode->subgraphIdentity) &&
-            $this->node->nodeAggregateId->equals($feedbackNode->nodeAggregateId)
-            // @todo what's this? && $this->getReferenceData() == $feedback->getReferenceData()
-        );
+        return $this->node->equals($feedbackNode);
+        // @todo what's this? && $this->getReferenceData() == $feedback->getReferenceData()
     }
 
     /**
@@ -150,10 +156,8 @@ class RenderContentOutOfBand extends AbstractFeedback
     public function serializePayload(ControllerContext $controllerContext): array
     {
         if (!is_null($this->node)) {
-            $contentRepository = $this->contentRepositoryRegistry->get($this->node->subgraphIdentity->contentRepositoryId);
-            $nodeAddressFactory = NodeAddressFactory::create($contentRepository);
             return [
-                'contextPath' => $nodeAddressFactory->createFromNode($this->node)->serializeForUri(),
+                'contextPath' => NodeAddress::fromNode($this->node)->toJson(),
                 'parentDomAddress' => $this->getParentDomAddress(),
                 'siblingDomAddress' => $this->getSiblingDomAddress(),
                 'mode' => $this->getMode(),
@@ -166,13 +170,13 @@ class RenderContentOutOfBand extends AbstractFeedback
     /**
      * Render the node
      */
-    protected function renderContent(ControllerContext $controllerContext): string|ResponseInterface
+    protected function renderContent(ControllerContext $controllerContext): string
     {
         if (is_null($this->node)) {
             return '';
         }
         $subgraph = $this->contentRepositoryRegistry->subgraphForNode($this->node);
-        $parentNode = $subgraph->findParentNode($this->node->nodeAggregateId);
+        $parentNode = $subgraph->findParentNode($this->node->aggregateId);
         if ($parentNode) {
             $cacheTags = $this->cachingHelper->nodeTag($parentNode);
             foreach ($cacheTags as $tag) {
@@ -183,14 +187,22 @@ class RenderContentOutOfBand extends AbstractFeedback
             if ($parentDomAddress) {
                 $renderingMode = $this->renderingModeService->findByCurrentUser();
 
-                $fusionView = new FusionView();
-                $fusionView->setControllerContext($controllerContext);
-                $fusionView->setOption('renderingModeName', $renderingMode->name);
+                $view = $this->outOfBandRenderingViewFactory->resolveView();
+                if (method_exists($view, 'setControllerContext')) {
+                    // deprecated
+                    $view->setControllerContext($controllerContext);
+                }
+                $view->setOption('renderingModeName', $renderingMode->name);
 
-                $fusionView->assign('value', $parentNode);
-                $fusionView->setFusionPath($parentDomAddress->getFusionPath());
+                $view->assign('value', $parentNode);
+                $view->setRenderingEntryPoint($parentDomAddress->getFusionPath());
 
-                return $fusionView->render();
+                $content = $view->render();
+                if ($content instanceof ResponseInterface) {
+                    // todo should not happen, as we never render a full Neos.Neos:Page here?
+                    return $content->getBody()->getContents();
+                }
+                return $content->getContents();
             }
         }
 

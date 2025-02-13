@@ -1,11 +1,10 @@
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
-import {$get} from 'plow-js';
 
 import {neos} from '@neos-project/neos-ui-decorators';
 import {SelectBox} from '@neos-project/react-ui-components';
 
-import {searchOptions} from '@neos-project/neos-ui-editors/src/Editors/SelectBox/SelectBoxHelpers.js';
+import {searchOptions} from '@neos-project/neos-ui-editors/src/Editors/SelectBox/selectBoxHelpers.js';
 
 import style from './style.module.css';
 
@@ -35,13 +34,13 @@ export default class NodeTreeFilter extends PureComponent {
         const {i18nRegistry, nodeTypesRegistry, neos, onChange, value} = this.props;
         const label = i18nRegistry.translate('filter', 'Filter', {}, 'Neos.Neos', 'Main');
 
-        const presets = $get('configuration.nodeTree.presets', neos);
+        const presets = neos?.configuration?.nodeTree?.presets;
         let options = Object.keys(presets)
             .filter(presetName => (presetName !== 'default'))
             .map(presetName => ({
-                value: $get([presetName, 'baseNodeType'], presets),
-                label: $get([presetName, 'ui', 'label'], presets) || '[' + presetName + ']',
-                icon: $get([presetName, 'ui', 'icon'], presets)
+                value: presets?.[presetName]?.baseNodeType,
+                label: presets?.[presetName]?.ui?.label || '[' + presetName + ']',
+                icon: presets?.[presetName]?.ui?.icon
             }));
 
         if (options.length === 0) {
@@ -53,13 +52,14 @@ export default class NodeTreeFilter extends PureComponent {
             options = documentNodeTypes.map(nodeType => ({
                 value: nodeType.name,
                 label: i18nRegistry.translate(nodeType.label),
-                icon: $get('ui.icon', nodeType)
+                icon: nodeType?.ui?.icon
             }));
         }
 
         return (
             <div id="neos-NodeTreeFilter" className={style.searchBar}>
                 <SelectBox
+                    id="neos-NodeTreeFilter-SelectBox"
                     placeholder={label}
                     placeholderIcon={'filter'}
                     onValueChange={onChange}

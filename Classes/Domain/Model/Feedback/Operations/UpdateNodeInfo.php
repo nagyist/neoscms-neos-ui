@@ -13,17 +13,21 @@ namespace Neos\Neos\Ui\Domain\Model\Feedback\Operations;
 
 use Neos\ContentRepository\Core\Projection\ContentGraph\Filter\FindChildNodesFilter;
 use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
-use Neos\Neos\FrontendRouting\NodeAddressFactory;
+use Neos\ContentRepository\Core\SharedModel\Node\NodeAddress;
 use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
+use Neos\Flow\Mvc\ActionRequest;
 use Neos\Flow\Mvc\Controller\ControllerContext;
 use Neos\Neos\Ui\Domain\Model\AbstractFeedback;
 use Neos\Neos\Ui\Domain\Model\FeedbackInterface;
 use Neos\Neos\Ui\Fusion\Helper\NodeInfoHelper;
 
+/**
+ * @internal
+ */
 class UpdateNodeInfo extends AbstractFeedback
 {
-    protected ?Node $node;
+    protected Node $node;
 
     /**
      * @Flow\Inject
@@ -64,7 +68,7 @@ class UpdateNodeInfo extends AbstractFeedback
         $this->isRecursive = true;
     }
 
-    public function getNode(): ?Node
+    public function getNode(): Node
     {
         return $this->node;
     }
@@ -76,7 +80,7 @@ class UpdateNodeInfo extends AbstractFeedback
 
     public function getDescription(): string
     {
-        return sprintf('Updated info for node "%s" is available.', $this->node?->nodeAggregateId->value);
+        return sprintf('Updated info for node "%s" is available.', $this->node->aggregateId->value);
     }
 
     /**
@@ -87,11 +91,8 @@ class UpdateNodeInfo extends AbstractFeedback
         if (!$feedback instanceof UpdateNodeInfo) {
             return false;
         }
-        $feedbackNode = $feedback->getNode();
 
-        return $this->node && $feedbackNode && $this->node->nodeAggregateId->equals(
-            $feedbackNode->nodeAggregateId
-        );
+        return $this->getNode()->equals($feedback->getNode());
     }
 
     /**
@@ -101,11 +102,9 @@ class UpdateNodeInfo extends AbstractFeedback
      */
     public function serializePayload(ControllerContext $controllerContext): array
     {
-        return $this->node
-            ? [
-                'byContextPath' => $this->serializeNodeRecursively($this->node, $controllerContext)
-            ]
-            : [];
+        return [
+            'byContextPath' => $this->serializeNodeRecursively($this->node, $controllerContext->getRequest())
+        ];
     }
 
     /**
@@ -113,23 +112,22 @@ class UpdateNodeInfo extends AbstractFeedback
      *
      * @return array<string,?array<string,mixed>>
      */
-    public function serializeNodeRecursively(Node $node, ControllerContext $controllerContext): array
+    private function serializeNodeRecursively(Node $node, ActionRequest $actionRequest): array
     {
-        $contentRepository = $this->contentRepositoryRegistry->get($node->subgraphIdentity->contentRepositoryId);
-        $nodeAddressFactory = NodeAddressFactory::create($contentRepository);
+        $contentRepository = $this->contentRepositoryRegistry->get($node->contentRepositoryId);
 
         $result = [
-            $nodeAddressFactory->createFromNode($node)->serializeForUri()
+            NodeAddress::fromNode($node)->toJson()
             => $this->nodeInfoHelper->renderNodeWithPropertiesAndChildrenInformation(
                 $node,
-                $controllerContext
+                $actionRequest
             )
         ];
 
         if ($this->isRecursive === true) {
             $subgraph = $this->contentRepositoryRegistry->subgraphForNode($node);
-            foreach ($subgraph->findChildNodes($node->nodeAggregateId, FindChildNodesFilter::create()) as $childNode) {
-                $result = array_merge($result, $this->serializeNodeRecursively($childNode, $controllerContext));
+            foreach ($subgraph->findChildNodes($node->aggregateId, FindChildNodesFilter::create()) as $childNode) {
+                $result = array_merge($result, $this->serializeNodeRecursively($childNode, $actionRequest));
             }
         }
 

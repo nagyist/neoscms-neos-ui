@@ -1,12 +1,11 @@
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
-import {$transform} from 'plow-js';
 import {connect} from 'react-redux';
-import SelectBox from '@neos-project/react-ui-components/src/SelectBox/';
-import MultiSelectBox from '@neos-project/react-ui-components/src/MultiSelectBox/';
+import {SelectBox, MultiSelectBox} from '@neos-project/react-ui-components';
 import {selectors} from '@neos-project/neos-ui-redux-store';
 import {neos} from '@neos-project/neos-ui-decorators';
-import {shouldDisplaySearchBox, searchOptions, processSelectBoxOptions} from './SelectBoxHelpers';
+import {shouldDisplaySearchBox, searchOptions, processSelectBoxOptions} from './selectBoxHelpers';
+import {createSelectBoxValueStringFromPossiblyStrangeNodePropertyValue} from './createSelectBoxValueStringFromPossiblyStrangeNodePropertyValue';
 import PreviewOption from '../../Library/PreviewOption';
 
 const getDataLoaderOptionsForProps = props => ({
@@ -21,8 +20,8 @@ const getDataLoaderOptionsForProps = props => ({
     i18nRegistry: globalRegistry.get('i18n'),
     dataSourcesDataLoader: globalRegistry.get('dataLoaders').get('DataSources')
 }))
-@connect($transform({
-    focusedNodePath: selectors.CR.Nodes.focusedNodePathSelector
+@connect(state => ({
+    focusedNodePath: selectors.CR.Nodes.focusedNodePathSelector(state)
 }))
 export default class DataSourceBasedSelectBoxEditor extends PureComponent {
     static propTypes = {
@@ -30,7 +29,17 @@ export default class DataSourceBasedSelectBoxEditor extends PureComponent {
         className: PropTypes.string,
         value: PropTypes.oneOfType([
             PropTypes.string,
-            PropTypes.arrayOf(PropTypes.string)
+            PropTypes.arrayOf(PropTypes.string),
+            PropTypes.shape({
+                __identity: PropTypes.string.isRequired,
+                __type: PropTypes.string
+            }),
+            PropTypes.arrayOf(
+                PropTypes.shape({
+                    __identity: PropTypes.string.isRequired,
+                    __type: PropTypes.string
+                })
+            )
         ]),
         options: PropTypes.shape({
             allowEmpty: PropTypes.bool,
@@ -101,11 +110,29 @@ export default class DataSourceBasedSelectBoxEditor extends PureComponent {
             });
     }
 
+    get valueForSingleSelect() {
+        const {value} = this.props;
+        return createSelectBoxValueStringFromPossiblyStrangeNodePropertyValue(value);
+    }
+
+    get valueForMultiSelect() {
+        const {value} = this.props;
+
+        if (Array.isArray(value)) {
+            return value.map(createSelectBoxValueStringFromPossiblyStrangeNodePropertyValue);
+        }
+
+        return value ? [createSelectBoxValueStringFromPossiblyStrangeNodePropertyValue(value)] : [];
+    }
+
     render() {
-        const {commit, value, i18nRegistry, className} = this.props;
+        const {commit, i18nRegistry, className} = this.props;
         const options = Object.assign({}, this.constructor.defaultOptions, this.props.options);
 
-        const processedSelectBoxOptions = processSelectBoxOptions(i18nRegistry, this.state.selectBoxOptions);
+        const processedValue = options.multiple ? this.valueForMultiSelect : this.valueForSingleSelect;
+
+        // we have to wait till the options are loaded as otherwise everything will be shown as "invalid" and is a mismatch
+        const processedSelectBoxOptions = this.state.isLoading ? [] : processSelectBoxOptions(i18nRegistry, this.state.selectBoxOptions, processedValue);
 
         // Placeholder text must be unescaped in case html entities were used
         const placeholder = options && options.placeholder && i18nRegistry.translate(unescape(options.placeholder));
@@ -115,7 +142,7 @@ export default class DataSourceBasedSelectBoxEditor extends PureComponent {
             return (<MultiSelectBox
                 className={className}
                 options={processedSelectBoxOptions}
-                values={value || []}
+                values={processedValue}
                 onValuesChange={commit}
                 loadingLabel={loadingLabel}
                 ListPreviewElement={PreviewOption}
@@ -136,7 +163,7 @@ export default class DataSourceBasedSelectBoxEditor extends PureComponent {
         return (<SelectBox
             className={className}
             options={this.state.searchTerm ? searchOptions(this.state.searchTerm, processedSelectBoxOptions) : processedSelectBoxOptions}
-            value={value}
+            value={processedValue}
             onValueChange={commit}
             loadingLabel={loadingLabel}
             ListPreviewElement={PreviewOption}

@@ -19,38 +19,34 @@ use Neos\ContentRepository\Core\Feature\NodeDisabling\Command\EnableNodeAggregat
 use Neos\ContentRepository\Core\Feature\NodeModification\Command\SetNodeProperties;
 use Neos\ContentRepository\Core\Feature\NodeModification\Dto\PropertyValuesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Command\SetNodeReferences;
+use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesForName;
 use Neos\ContentRepository\Core\Feature\NodeReferencing\Dto\NodeReferencesToWrite;
 use Neos\ContentRepository\Core\Feature\NodeTypeChange\Command\ChangeNodeAggregateType;
 use Neos\ContentRepository\Core\Feature\NodeTypeChange\Dto\NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy;
 use Neos\ContentRepository\Core\Feature\NodeVariation\Command\CreateNodeVariant;
+use Neos\ContentRepository\Core\NodeType\NodeType;
 use Neos\ContentRepository\Core\NodeType\NodeTypeName;
+use Neos\ContentRepository\Core\Projection\ContentGraph\Node;
 use Neos\ContentRepository\Core\SharedModel\Exception\ContentStreamDoesNotExistYet;
 use Neos\ContentRepository\Core\SharedModel\Exception\NodeAggregatesTypeIsAmbiguous;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeAggregateIds;
 use Neos\ContentRepository\Core\SharedModel\Node\NodeVariantSelectionStrategy;
 use Neos\ContentRepository\Core\SharedModel\Node\ReferenceName;
-use Neos\ContentRepositoryRegistry\ContentRepositoryRegistry;
 use Neos\Flow\Annotations as Flow;
 use Neos\Neos\Ui\Domain\Model\AbstractChange;
 use Neos\Neos\Ui\Domain\Model\Feedback\Operations\ReloadContentOutOfBand;
 use Neos\Neos\Ui\Domain\Model\Feedback\Operations\UpdateNodeInfo;
 use Neos\Neos\Ui\Domain\Model\RenderedNodeDomAddress;
 use Neos\Neos\Ui\Domain\Service\NodePropertyConversionService;
-use Neos\Neos\Utility\NodeTypeWithFallbackProvider;
-
-/** @codingStandardsIgnoreStart */
-/** @codingStandardsIgnoreEnd */
 
 /**
  * Changes a property on a node
+ * @internal These objects internally reflect possible operations made by the Neos.Ui.
+ *           They are sorely an implementation detail. You should not use them!
+ *           Please look into the php command API of the Neos CR instead.
  */
 class Property extends AbstractChange
 {
-    use NodeTypeWithFallbackProvider;
-
-    #[Flow\Inject]
-    protected ContentRepositoryRegistry $contentRepositoryRegistry;
-
     /**
      * @Flow\Inject
      * @var NodePropertyConversionService
@@ -69,6 +65,7 @@ class Property extends AbstractChange
 
     /**
      * The value, the property will be set to
+     *
      * @var string|array<int|string,mixed>|null
      */
     protected string|array|null $value = null;
@@ -129,175 +126,205 @@ class Property extends AbstractChange
      */
     public function canApply(): bool
     {
-        if (is_null($this->subject)) {
+        $propertyName = $this->getPropertyName();
+        if (!$propertyName) {
             return false;
         }
-        $nodeType = $this->subject->nodeType;
-        $propertyName = $this->getPropertyName();
-        $nodeTypeProperties = $nodeType->getProperties();
-
-        return isset($nodeTypeProperties[$propertyName]);
+        $nodeType = $this->getNodeType($this->subject);
+        if (!$nodeType) {
+            return false;
+        }
+        return $nodeType->hasProperty($propertyName) || $nodeType->hasReference($propertyName);
     }
 
     /**
      * Applies this change
      *
-     * @throws \Neos\ContentRepository\Exception\NodeException
      * @throws ContentStreamDoesNotExistYet
      * @throws NodeAggregatesTypeIsAmbiguous
      * @throws DimensionSpacePointNotFound
+     * @throws \Exception
      */
     public function apply(): void
     {
         $subject = $this->subject;
+        $nodeType = $this->getNodeType($subject);
         $propertyName = $this->getPropertyName();
-        if ($this->canApply() && !is_null($subject) && !is_null($propertyName)) {
-            $contentRepository = $this->contentRepositoryRegistry->get($subject->subgraphIdentity->contentRepositoryId);
+        if (is_null($nodeType) || is_null($propertyName) || $this->canApply() === false) {
+            return;
+        }
 
-            $propertyType = $this->getNodeType($subject)->getPropertyType($propertyName);
+        match (true) {
+            $nodeType->hasReference($propertyName) => $this->handleNodeReferenceChange($subject, $propertyName),
+            // todo create custom 'changes' for these special cases
+            // we continue to use the underscore logic in the Neos Ui code base as the JS-client code works this way
+            $propertyName === '_nodeType' => $this->handleNodeTypeChange($subject),
+            $propertyName === '_hidden' => $this->handleHiddenPropertyChange($subject),
+            default => $this->handlePropertyChange($subject, $nodeType, $propertyName)
+        };
 
-            // Use extra commands for reference handling
-            if ($propertyType === 'reference' || $propertyType === 'references') {
-                $value = $this->getValue();
-                $destinationNodeAggregateIds = [];
-                if ($propertyType === 'reference') {
-                    if (is_string($value) && !empty($value)) {
-                        $destinationNodeAggregateIds[] = $value;
-                    }
-                }
+        $this->createFeedback($subject);
+    }
 
-                if ($propertyType === 'references') {
-                    /** @var array<int,string> $values */
-                    $values = $value;
-                    if (is_array($values)) {
-                        foreach ($values as $singleNodeAggregateId) {
-                            $destinationNodeAggregateIds[] = $singleNodeAggregateId;
-                        }
-                    }
-                }
+    private function createFeedback(Node $subject): void
+    {
+        $propertyName = $this->getPropertyName();
 
-                $commandResult = $contentRepository->handle(
-                    new SetNodeReferences(
-                        $subject->subgraphIdentity->contentStreamId,
-                        $subject->nodeAggregateId,
-                        $subject->originDimensionSpacePoint,
-                        ReferenceName::fromString($propertyName),
-                        NodeReferencesToWrite::fromNodeAggregateIds(NodeAggregateIds::fromArray($destinationNodeAggregateIds))
-                    )
-                );
+        // We have to refetch the Node after modifications because its a read-only model
+        // These 'Change' classes have been designed with mutable Neos < 9 Nodes and thus this might seem hacky
+        // When fully redesigning the Neos Ui php integration this will fixed
+        $subgraph = $this->contentRepositoryRegistry->subgraphForNode($subject);
+        $originalNodeAggregateId = $subject->aggregateId;
+        $node = $subgraph->findNodeById($originalNodeAggregateId);
+        if (is_null($node)) {
+            throw new \InvalidArgumentException(
+                'Cannot apply Property on missing node ' . $originalNodeAggregateId->value,
+                1645560836
+            );
+        }
+
+        $this->updateWorkspaceInfo();
+        $parentNode = $subgraph->findParentNode($node->aggregateId);
+
+        // This might be needed to update node label and other things that we can calculate only on the server
+        $updateNodeInfo = new UpdateNodeInfo();
+        $updateNodeInfo->setNode($node);
+        $this->feedbackCollection->add($updateNodeInfo);
+
+        $reloadIfChangedConfigurationPathForProperty = sprintf('properties.%s.ui.reloadIfChanged', $propertyName);
+        $reloadIfChangedConfigurationPathForReference = sprintf('references.%s.ui.reloadIfChanged', $propertyName);
+        if (!$this->getIsInline()
+            && (
+                $this->getNodeType($node)?->getConfiguration($reloadIfChangedConfigurationPathForProperty)
+                || $this->getNodeType($node)?->getConfiguration($reloadIfChangedConfigurationPathForReference)
+            )
+        ) {
+            if ($this->getNodeDomAddress() && $this->getNodeDomAddress()->getFusionPath()
+                && $parentNode
+                && $this->getNodeType($parentNode)?->isOfType('Neos.Neos:ContentCollection')) {
+                $reloadContentOutOfBand = new ReloadContentOutOfBand();
+                $reloadContentOutOfBand->setNode($node);
+                $reloadContentOutOfBand->setNodeDomAddress($this->getNodeDomAddress());
+                $this->feedbackCollection->add($reloadContentOutOfBand);
             } else {
-                $value = $this->nodePropertyConversionService->convert(
-                    $this->getNodeType($subject),
-                    $propertyName,
-                    $this->getValue()
-                );
-
-                if ($propertyName[0] !== '_' || $propertyName === '_hiddenInIndex') {
-                    $originDimensionSpacePoint = $subject->originDimensionSpacePoint;
-                    if (!$subject->subgraphIdentity->dimensionSpacePoint->equals($originDimensionSpacePoint)) {
-                        $originDimensionSpacePoint = OriginDimensionSpacePoint::fromDimensionSpacePoint($subject->subgraphIdentity->dimensionSpacePoint);
-                        // if origin dimension space point != current DSP -> translate transparently (matching old behavior)
-                        $contentRepository->handle(
-                            CreateNodeVariant::create(
-                                $subject->subgraphIdentity->contentStreamId,
-                                $subject->nodeAggregateId,
-                                $subject->originDimensionSpacePoint,
-                                $originDimensionSpacePoint
-                            )
-                        )->block();
-                    }
-                    $commandResult = $contentRepository->handle(
-                        SetNodeProperties::create(
-                            $subject->subgraphIdentity->contentStreamId,
-                            $subject->nodeAggregateId,
-                            $originDimensionSpacePoint,
-                            PropertyValuesToWrite::fromArray(
-                                [
-                                    $propertyName => $value
-                                ]
-                            )
-                        )
-                    );
-                } else {
-                    // property starts with "_"
-                    if ($propertyName === '_nodeType') {
-                        $commandResult = $contentRepository->handle(
-                            ChangeNodeAggregateType::create(
-                                $subject->subgraphIdentity->contentStreamId,
-                                $subject->nodeAggregateId,
-                                NodeTypeName::fromString($value),
-                                NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_DELETE
-                            )
-                        );
-                    } elseif ($propertyName === '_hidden') {
-                        if ($value === true) {
-                            $commandResult = $contentRepository->handle(
-                                DisableNodeAggregate::create(
-                                    $subject->subgraphIdentity->contentStreamId,
-                                    $subject->nodeAggregateId,
-                                    $subject->originDimensionSpacePoint->toDimensionSpacePoint(),
-                                    NodeVariantSelectionStrategy::STRATEGY_ALL_SPECIALIZATIONS
-                                )
-                            );
-                        } else {
-                            // unhide
-                            $commandResult = $contentRepository->handle(
-                                EnableNodeAggregate::create(
-                                    $subject->subgraphIdentity->contentStreamId,
-                                    $subject->nodeAggregateId,
-                                    $subject->originDimensionSpacePoint->toDimensionSpacePoint(),
-                                    NodeVariantSelectionStrategy::STRATEGY_ALL_SPECIALIZATIONS
-                                )
-                            );
-                        }
-                    } else {
-                        throw new \Exception("TODO FIX");
-                    }
-                }
-            }
-
-            $commandResult->block();
-
-            // !!! REMEMBER: we are not allowed to use $node anymore,
-            // because it may have been modified by the commands above.
-            // Thus, we need to re-fetch it (as a workaround; until we do not need this anymore)
-            $subgraph = $this->contentRepositoryRegistry->subgraphForNode($subject);
-            $originalNodeAggregateId = $subject->nodeAggregateId;
-            $node = $subgraph->findNodeById($originalNodeAggregateId);
-            if (is_null($node)) {
-                throw new \InvalidArgumentException(
-                    'Cannot apply Property on missing node ' . $originalNodeAggregateId->value,
-                    1645560836
-                );
-            }
-
-            $this->updateWorkspaceInfo();
-            $parentNode = $subgraph->findParentNode($node->nodeAggregateId);
-
-            // This might be needed to update node label and other things that we can calculate only on the server
-            $updateNodeInfo = new UpdateNodeInfo();
-            $updateNodeInfo->setNode($node);
-            $this->feedbackCollection->add($updateNodeInfo);
-
-            $reloadIfChangedConfigurationPath = sprintf('properties.%s.ui.reloadIfChanged', $propertyName);
-            if (!$this->getIsInline() && $this->getNodeType($node)->getConfiguration($reloadIfChangedConfigurationPath)) {
-                if ($this->getNodeDomAddress() && $this->getNodeDomAddress()->getFusionPath()
-                    && $parentNode
-                    && $this->getNodeType($parentNode)->isOfType('Neos.Neos:ContentCollection')) {
-                    $reloadContentOutOfBand = new ReloadContentOutOfBand();
-                    $reloadContentOutOfBand->setNode($node);
-                    $reloadContentOutOfBand->setNodeDomAddress($this->getNodeDomAddress());
-                    $this->feedbackCollection->add($reloadContentOutOfBand);
-                } else {
-                    $this->reloadDocument($node);
-                }
-            }
-
-            $reloadPageIfChangedConfigurationPath = sprintf('properties.%s.ui.reloadPageIfChanged', $propertyName);
-            if (!$this->getIsInline()
-                && $this->getNodeType($node)->getConfiguration($reloadPageIfChangedConfigurationPath)) {
                 $this->reloadDocument($node);
             }
         }
+
+        $reloadPageIfChangedConfigurationPathForProperty = sprintf('properties.%s.ui.reloadPageIfChanged', $propertyName);
+        $reloadPageIfChangedConfigurationPathForReference = sprintf('references.%s.ui.reloadPageIfChanged', $propertyName);
+        if (!$this->getIsInline()
+            && (
+                $this->getNodeType($node)?->getConfiguration($reloadPageIfChangedConfigurationPathForProperty)
+                || $this->getNodeType($node)?->getConfiguration($reloadPageIfChangedConfigurationPathForReference)
+            )
+        ) {
+            $this->reloadDocument($node);
+        }
+    }
+
+    private function handleNodeReferenceChange(Node $subject, string $propertyName): void
+    {
+        $contentRepository = $this->contentRepositoryRegistry->get($subject->contentRepositoryId);
+        $value = $this->getValue();
+
+        if (!is_array($value)) {
+            $value = [$value];
+        }
+
+        $value = array_filter($value, fn ($v) => is_string($v) && !empty($v));
+        $destinationNodeAggregateIds = array_values($value);
+
+        $contentRepository->handle(
+            SetNodeReferences::create(
+                $subject->workspaceName,
+                $subject->aggregateId,
+                $subject->originDimensionSpacePoint,
+                NodeReferencesToWrite::create(
+                    NodeReferencesForName::fromTargets(
+                        ReferenceName::fromString($propertyName),
+                        NodeAggregateIds::fromArray($destinationNodeAggregateIds)
+                    )
+                )
+            )
+        );
+    }
+
+    private function handleHiddenPropertyChange(Node $subject): void
+    {
+        // todo simplify conversion
+        $value = (bool)$this->nodePropertyConversionService->convert('boolean', $this->getValue());
+
+        $contentRepository = $this->contentRepositoryRegistry->get($subject->contentRepositoryId);
+
+        $command = match ($value) {
+            false => EnableNodeAggregate::create(
+                $subject->workspaceName,
+                $subject->aggregateId,
+                $subject->originDimensionSpacePoint->toDimensionSpacePoint(),
+                NodeVariantSelectionStrategy::STRATEGY_ALL_SPECIALIZATIONS
+            ),
+            true => DisableNodeAggregate::create(
+                $subject->workspaceName,
+                $subject->aggregateId,
+                $subject->originDimensionSpacePoint->toDimensionSpacePoint(),
+                NodeVariantSelectionStrategy::STRATEGY_ALL_SPECIALIZATIONS
+            )
+        };
+
+        $contentRepository->handle($command);
+    }
+
+    private function handleNodeTypeChange(Node $subject): void
+    {
+        $contentRepository = $this->contentRepositoryRegistry->get($subject->contentRepositoryId);
+        // todo simplify conversion
+        /** @var string $value */
+        $value = $this->nodePropertyConversionService->convert('string', $this->getValue());
+
+        $contentRepository->handle(
+            ChangeNodeAggregateType::create(
+                $subject->workspaceName,
+                $subject->aggregateId,
+                NodeTypeName::fromString($value),
+                NodeAggregateTypeChangeChildConstraintConflictResolutionStrategy::STRATEGY_DELETE
+            )
+        );
+    }
+
+    private function handlePropertyChange(Node $subject, NodeType $nodeType, string $propertyName): void
+    {
+        $contentRepository = $this->contentRepositoryRegistry->get($subject->contentRepositoryId);
+        $value = $this->nodePropertyConversionService->convert(
+            $nodeType->getPropertyType($propertyName),
+            $this->getValue()
+        );
+
+        $originDimensionSpacePoint = $subject->originDimensionSpacePoint;
+        if (!$subject->dimensionSpacePoint->equals($originDimensionSpacePoint)) {
+            $originDimensionSpacePoint = OriginDimensionSpacePoint::fromDimensionSpacePoint($subject->dimensionSpacePoint);
+            // if origin dimension space point != current DSP -> translate transparently (matching old behavior)
+            $contentRepository->handle(
+                CreateNodeVariant::create(
+                    $subject->workspaceName,
+                    $subject->aggregateId,
+                    $subject->originDimensionSpacePoint,
+                    $originDimensionSpacePoint
+                )
+            );
+        }
+
+        $contentRepository->handle(
+            SetNodeProperties::create(
+                $subject->workspaceName,
+                $subject->aggregateId,
+                $originDimensionSpacePoint,
+                PropertyValuesToWrite::fromArray(
+                    [
+                        $propertyName => $value
+                    ]
+                )
+            )
+        );
     }
 }

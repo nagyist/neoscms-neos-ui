@@ -1,9 +1,9 @@
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
-import {$get} from 'plow-js';
 import {neos} from '@neos-project/neos-ui-decorators';
 import {selectors} from '@neos-project/neos-ui-redux-store';
+import {IconButton} from '@neos-project/react-ui-components';
 import style from './style.module.css';
 
 @connect(state => ({
@@ -22,20 +22,35 @@ export default class NodeInfoView extends PureComponent {
         i18nRegistry: PropTypes.object.isRequired
     }
 
+    nodeTypeNameRef = React.createRef();
+
+    copyNodeToClipboard = () => {
+        this.nodeTypeNameRef.current.select();
+        const result = document.execCommand('copy');
+
+        if (result) {
+            this.props.addFlashMessage('copiedToClipboard', 'Copied nodetype to clipboard', 'success');
+        } else {
+            this.props.addFlashMessage('copiedToClipboardFailed', 'Could not copy to clipboard', 'error');
+        }
+    }
+
     render() {
         const {focusedNodeContextPath, getNodeByContextPath, i18nRegistry} = this.props;
 
         const node = getNodeByContextPath(focusedNodeContextPath);
         const properties = {
-            identifier: $get('identifier', node),
-            created: $get('creationDateTime', node),
-            lastModification: $get('lastModificationDateTime', node),
-            lastPublication: $get('lastPublicationDateTime', node),
-            nodeAddress: $get('nodeAddress', node),
-            name: $get('name', node) ? $get('name', node) : '/'
+            identifier: node?.identifier,
+            created: node?.creationDateTime,
+            lastModification: node?.lastModificationDateTime,
+            lastPublication: node?.lastPublicationDateTime,
+            nodeAddress: node?.nodeAddress,
+            name: node?.name ?? '/'
         };
 
-        const nodeType = $get('nodeType', node);
+        const nodeType = node?.nodeType;
+        // Insert word breaking tags to make the node type more readable
+        const wrappingNodeTypeName = nodeType?.replace(/([:.])/g, '<wbr/>$1');
 
         return (
             <ul className={style.nodeInfoView}>
@@ -64,8 +79,18 @@ export default class NodeInfoView extends PureComponent {
                     <NodeInfoViewContent>{properties.name ?? i18nRegistry.translate('unavailable', 'unavailable', {}, 'Neos.Neos')}</NodeInfoViewContent>
                 </li>
                 <li className={style.nodeInfoView__item} title={nodeType}>
-                    <div className={style.nodeInfoView__title}>{i18nRegistry.translate('type', 'Type', {}, 'Neos.Neos')}</div>
-                    <NodeInfoViewContent>{nodeType}</NodeInfoViewContent>
+                    <div
+                        className={style.nodeInfoView__title}>{i18nRegistry.translate('type', 'Type', {}, 'Neos.Neos')}</div>
+                    <textarea ref={this.nodeTypeNameRef} className={style.nodeInfoView__nodeTypeTextarea}>{nodeType}</textarea>
+                    <NodeInfoViewContent>
+                        <span dangerouslySetInnerHTML={{__html: wrappingNodeTypeName}}></span>
+                    </NodeInfoViewContent>
+                    <IconButton
+                        className={style.nodeInfoView__copyButton}
+                        icon="copy"
+                        title={i18nRegistry.translate('copyNodeTypeNameToClipboard', 'Copy node type to clipboard', {}, 'Neos.Neos.Ui')}
+                        onClick={this.copyNodeToClipboard}
+                    />
                 </li>
             </ul>
         );

@@ -2,7 +2,7 @@ version: "3.4"
 services:
 
   php:
-    image: thecodingmachine/php:8.0-v4-cli-node16
+    image: thecodingmachine/php:8.2-v4-cli-node16
     command: tail -f /dev/null
     ports:
       - 8081:8081
@@ -14,12 +14,15 @@ services:
       # Enable GD
       PHP_EXTENSION_GD: 1
       COMPOSER_CACHE_DIR: /home/circleci/.composer/cache
+      DB_HOST: db
 
   db:
-    image: mysql:8
+    image: mariadb:10.11
     environment:
       MYSQL_DATABASE: neos
       MYSQL_ROOT_PASSWORD: not_a_real_password
-
+    ports:
+      - 13309:3306
+    command: ['mysqld', '--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci']
 volumes:
   composer_cache:

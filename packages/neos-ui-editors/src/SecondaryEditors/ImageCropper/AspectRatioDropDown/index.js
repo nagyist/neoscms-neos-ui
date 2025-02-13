@@ -1,8 +1,7 @@
 import React, {PureComponent} from 'react';
 import PropTypes from 'prop-types';
 import mergeClassNames from 'classnames';
-import IconButton from '@neos-project/react-ui-components/src/IconButton/';
-import DropDown from '@neos-project/react-ui-components/src/DropDown/';
+import {DropDown, IconButton} from '@neos-project/react-ui-components';
 
 import {AspectRatioOption, NullAspectRatioStrategy} from '../model';
 import style from './style.module.css';
@@ -38,13 +37,14 @@ export default class AspectRatioDropDown extends PureComponent {
             PropTypes.instanceOf(AspectRatioOption)
         ),
         placeholder: PropTypes.string,
+        allowCustomRatios: PropTypes.boolean,
 
         onSelect: PropTypes.func.isRequired,
         onClear: PropTypes.func.isRequired
     };
 
     render() {
-        const {options, current, placeholder, onSelect, onClear} = this.props;
+        const {options, current, placeholder, allowCustomRatios, onSelect, onClear} = this.props;
 
         const dropDownHeaderClasses = mergeClassNames({
             [style.dropDown__btn]: true,
@@ -59,7 +59,8 @@ export default class AspectRatioDropDown extends PureComponent {
                             <DropDown.Header className={dropDownHeaderClasses}>
                                 {current.label}
                             </DropDown.Header>
-                            <IconButton icon="times" onClick={onClear} className={style.dropDown__clear}/>
+                            {allowCustomRatios && (
+                            <IconButton icon="times" onClick={onClear} className={style.dropDown__clear}/>)}
                         </div>
                     ) : (
                         <DropDown.Header className={dropDownHeaderClasses}>
